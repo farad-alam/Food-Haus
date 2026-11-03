@@ -13,15 +13,32 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Schema has idempotency key, unique Stripe session id and a Stripe event table (R13.7, R8.5)
 - [x] Schema has the audit log and cash-abuse caps (R9.13, R6.15)
 
+## Done: admin authentication core (`lib/auth/`, tested without a database)
+- [x] Password hashing, per-hash random salt, constant-time verify, rehash-on-login upgrade (R13.3) — **PBKDF2-SHA256, 600,000 iterations, not argon2id/bcrypt**: neither runs reliably on Cloudflare Workers (see the note at the top of `lib/auth/password.ts`). R13.3 in `docs/requirements.md` is amended to match. The hash format is versioned so it can be upgraded later.
+- [x] Password policy: 12–128 characters, common-password blocklist, no email-name reuse
+- [x] Two-step login (RFC 6238 TOTP) required for Owner and Manager, with replay protection (R9.2)
+- [x] Generic "invalid credentials" for unknown user, wrong password and disabled account, with a dummy hash so timing does not reveal which emails exist
+- [x] Lockout keyed per account+IP (5), per IP (20) and per account (50), so a stranger cannot lock the shared Kitchen login out during service
+- [x] Sessions: 256-bit random tokens, only the SHA-256 hash stored; Owner/Manager 30-minute idle and 12-hour absolute limits; Kitchen has no idle timeout but expires after 14 days (R9.2)
+- [x] Password reset: single-use, 30-minute links, token hash stored, 3 requests/hour/email, identical response whether or not the account exists, weak passwords don't burn the link, success signs out every session (R9.1)
+- [x] Role/permission matrix and path rules; unlisted `/admin/*` paths are owner-only (fail closed); dot-segment, encoded and `//` paths are owner-only (R9.1)
+- [x] Same-origin (Origin/Referer) check for state-changing requests (R13.4)
+
+## Still to wire up for auth
+- [ ] Drizzle implementation of `AdminStore` (needs the database), including encrypting `totp_secret` at rest
+- [ ] Login/logout/reset pages and server actions; session cookie (`HttpOnly`, `Secure`, `SameSite=Lax`, `__Host-` prefix)
+- [ ] Enforce `canAccessPath` in a server layout and `can()` inside every server action
+- [ ] 2FA enrolment screen (QR from `otpauth://` URI) and one-time recovery codes
+- [ ] Send reset emails; confirm the page always shows the same message
+- [ ] Cloudflare Turnstile on login and reset (R13.13)
+- [ ] Confirm PBKDF2 cost inside the Workers runtime. Measured ~290 ms per hash/verify in Node 22 (staff-only logins, so acceptable); re-measure in `wrangler dev` against the Worker CPU limit
+
 ## Known gaps to close
 - [ ] **CSP `script-src` still allows `'unsafe-inline'`** because Next.js injects inline bootstrap scripts into statically prerendered pages. Tighten with hash-based CSP before launch.
 - [ ] `npm audit` reports `glob`/`minimatch` highs inside `@opennextjs/aws` build tooling. Build-time only (not bundled into the Worker). Re-check on each OpenNext release; do not run `npm audit fix --force` (it downgrades OpenNext to 0.3.0).
 - [ ] KV and D1 cache bindings in `wrangler.jsonc` use local placeholder ids — create the real ones and update the file.
 
 ## To build (with the requirement that covers it)
-- [ ] Admin auth: argon2id/bcrypt, rate-limited login, `HttpOnly`/`Secure`/`SameSite` cookies, role check on every action (R13.3, R9.1)
-- [ ] Two-step login for Owner and Manager — **Must** (R9.2)
-- [ ] Password reset: single-use, time-limited, rate-limited, no account enumeration, invalidates sessions (R9.1)
 - [ ] Zod validation on every endpoint; CSRF protection on admin actions (R13.4)
 - [ ] Server-side price/promo recalculation; browser prices never trusted (R6.14)
 - [ ] Stripe webhook: verify `Stripe-Signature` against the raw body, 5-min tolerance, dedupe on event id (R8.4, R8.5)

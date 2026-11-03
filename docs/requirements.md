@@ -298,7 +298,7 @@ The site handles customers' names, phone numbers, addresses and money, and the k
 | --- | --- | --- |
 | R13.1 | HTTPS everywhere with HSTS; plain HTTP redirects to HTTPS | Must |
 | R13.2 | Card details never reach our server or database; Stripe's hosted page takes them | Must |
-| R13.3 | Admin passwords stored with a modern slow hash (argon2id or bcrypt); login attempts rate-limited; session cookies are `HttpOnly`, `Secure` and `SameSite`; every admin page and action checks the user's role on the server | Must |
+| R13.3 | Admin passwords stored with a modern slow hash (argon2id or bcrypt; on Cloudflare Workers, where neither runs reliably, PBKDF2-SHA256 at 600,000 iterations or more through the platform's Web Crypto); login attempts rate-limited; session cookies are `HttpOnly`, `Secure` and `SameSite`; every admin page and action checks the user's role on the server | Must |
 | R13.4 | Every endpoint validates its input against a schema; database access is parameterised through the ORM; state-changing admin actions are protected against cross-site requests | Must |
 | R13.5 | Security headers including a Content-Security-Policy that allows only our own files and the exact third-party hostnames in use (Stripe's checkout and js domains, the Places UI Kit hosts, Google Analytics) — never a wholesale `*.google.com` allowance | Must |
 | R13.6 | Secrets live only in host settings, never in the repository or the browser bundle. Rotate any key that was shared in chat or email | Must |
