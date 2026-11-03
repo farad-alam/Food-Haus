@@ -1,19 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
 import { formatPenceExact } from "@/lib/money";
+import {
+  addLine,
+  EMPTY,
+  getServerSnapshot,
+  getSnapshot,
+  MAX_NOTE,
+  setLineQty,
+  subscribe,
+  write,
+  type BasketLine,
+} from "@/lib/basket-store";
 
 // R6.4: basket survives reload and a closed tab (localStorage), with a 200
 // character note. Prices here are DISPLAY ONLY — the server recomputes every
 // total from the database at checkout and never trusts the browser (R6.14).
 
-export type BasketLine = {
-  id: string; // menu item id
-  name: string;
-  price: number; // pence, display only
-  qty: number;
-};
+export type { BasketLine };
 
 type BasketState = {
   lines: BasketLine[];
@@ -26,7 +32,6 @@ type BasketState = {
   clear: () => void;
 };
 
-const KEY = "fh-basket-v1";
 const Ctx = createContext<BasketState | null>(null);
 
 export function useBasket(): BasketState {
@@ -36,65 +41,27 @@ export function useBasket(): BasketState {
 }
 
 export function BasketProvider({ children }: { children: React.ReactNode }) {
-  const [lines, setLines] = useState<BasketLine[]>([]);
-  const [note, setNoteState] = useState("");
-  const [ready, setReady] = useState(false);
+  // The server (and first client render) see an empty basket, then React swaps in
+  // the stored one — no hydration mismatch, no setState-in-effect.
+  const stored = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { lines?: BasketLine[]; note?: string };
-        if (Array.isArray(parsed.lines)) setLines(parsed.lines.filter((l) => l.qty > 0));
-        if (typeof parsed.note === "string") setNoteState(parsed.note.slice(0, 200));
-      }
-    } catch {
-      /* storage blocked or corrupt — start with an empty basket */
-    }
-    setReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!ready) return;
-    try {
-      localStorage.setItem(KEY, JSON.stringify({ lines, note }));
-    } catch {
-      /* ignore */
-    }
-  }, [lines, note, ready]);
-
-  const add = useCallback((line: Omit<BasketLine, "qty">) => {
-    setLines((prev) => {
-      const hit = prev.find((l) => l.id === line.id);
-      if (hit) return prev.map((l) => (l.id === line.id ? { ...l, qty: Math.min(l.qty + 1, 20) } : l));
-      return [...prev, { ...line, qty: 1 }];
-    });
-  }, []);
-
-  const setQty = useCallback((id: string, qty: number) => {
-    setLines((prev) =>
-      qty <= 0 ? prev.filter((l) => l.id !== id) : prev.map((l) => (l.id === id ? { ...l, qty: Math.min(qty, 20) } : l)),
-    );
-  }, []);
-
-  const setNote = useCallback((n: string) => setNoteState(n.slice(0, 200)), []);
-  const clear = useCallback(() => {
-    setLines([]);
-    setNoteState("");
-  }, []);
+  const add = useCallback((line: Omit<BasketLine, "qty">) => write(addLine(getSnapshot(), line)), []);
+  const setQty = useCallback((id: string, qty: number) => write(setLineQty(getSnapshot(), id, qty)), []);
+  const setNote = useCallback((n: string) => write({ ...getSnapshot(), note: n.slice(0, MAX_NOTE) }), []);
+  const clear = useCallback(() => write(EMPTY), []);
 
   const value = useMemo<BasketState>(
     () => ({
-      lines,
-      note,
-      count: lines.reduce((n, l) => n + l.qty, 0),
-      total: lines.reduce((n, l) => n + l.qty * l.price, 0),
+      lines: stored.lines,
+      note: stored.note,
+      count: stored.lines.reduce((n, l) => n + l.qty, 0),
+      total: stored.lines.reduce((n, l) => n + l.qty * l.price, 0),
       add,
       setQty,
       setNote,
       clear,
     }),
-    [lines, note, add, setQty, setNote, clear],
+    [stored, add, setQty, setNote, clear],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
