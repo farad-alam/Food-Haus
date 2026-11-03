@@ -1,0 +1,258 @@
+{
+  "_meta": {
+    "source": "Food_Haus_Menu_Updated_Print_File.pdf (2-page print menu)",
+    "extracted": "2026-11-03",
+    "currency": "GBP",
+    "price_unit": "pence (whole pence, per the data model in the requirements doc, section 12)",
+    "notes": [
+      "Descriptions are transcribed verbatim from the print menu, including its typos ('smashes', 'pattied', 'chutny', 'turkey rashes', 'onion chutny'). Tidy them with the owner before launch.",
+      "'Sweet Chilli Tenders £7.99' appears TWICE on the print menu; deduplicated here — confirm with the owner it is one item.",
+      "The menu shows no allergen information. allergens is null on every item = NOT YET SUPPLIED; the owner must fill all 14 flags per item before launch (requirements doc R11.10, due end of week 1).",
+      "The whole menu is halal (badge on the print menu); halal is recorded as a shop-wide dietary tag rather than per item.",
+      "Drinks appear in photos and in 'Make it a Meal' but the menu lists no drinks section or prices — ask the owner for the drinks list.",
+      "'Make it a Meal +£3.49' is printed under Burgers; assumed contents (fries + drink) are unconfirmed — ask the owner.",
+      "Chili & Cheese Nuggets description is partly covered by an image overlay on the print file; last words marked [unclear]."
+    ],
+    "shop": {
+      "name": "Food Haus",
+      "phone": "+44 7438 795428",
+      "email": "FoodHausfoodhaus72@gmail.com",
+      "address": "314-318 Selbourne Road, Luton, LU4 8NU",
+      "dietary": ["halal"]
+    }
+  },
+  "categories": [
+    { "name": "Burgers", "sort_order": 1, "visible": true },
+    { "name": "Wings", "sort_order": 2, "visible": true },
+    { "name": "Wraps", "sort_order": 3, "visible": true },
+    { "name": "Loaded Fries", "sort_order": 4, "visible": true },
+    { "name": "Tenders", "sort_order": 5, "visible": true },
+    { "name": "Sides", "sort_order": 6, "visible": true }
+  ],
+  "option_groups": [
+    {
+      "name": "Make it a Meal",
+      "applies_to_categories": ["Burgers"],
+      "required": false,
+      "min_picks": 0,
+      "max_picks": 1,
+      "options": [
+        { "name": "Meal (fries + drink — contents TBC with owner)", "price_change": 349 }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "category": "Burgers", "name": "Classic Burger", "price": 799, "sort_order": 1,
+      "description": "Classic Burger, featuring smashed juicy 2x beef patty served to perfection. This favorite is loaded with Double melted American cheese, Fresh lettuce and tomatoes, Savory grilled onions, Tangy gherkins, Finished with our signature homemade special sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Burgers", "name": "Fino Burger", "price": 799, "sort_order": 2,
+      "description": "Smash juicy beef patty topped with caramelised red onion chutney, halloumi cheese slices, American cheese slices, fresh lettuce, and creamy mayo.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Burgers", "name": "Sunset Burger", "price": 899, "sort_order": 3,
+      "description": "Sunset Burger, featuring premium smashes juicy 2x beef patty. This creation is topped with American cheese, lettuces, tomato slices, halloumi cheese for a rich, salty and Sweety bite and spicy chilli jam.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Burgers", "name": "Bane Beef Burger", "price": 999, "sort_order": 4,
+      "description": "Comes with 2x smash beef patty topped with melted American cheese, lettuce tomato, grilled onions, turkey rashes and our home made signature sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Burgers", "name": "Cheese Burger", "price": 599, "sort_order": 5,
+      "description": "Smash Juicy beef patty with American cheese, homemade signature sauce, ketchup fresh crisp lettuce and ripe tomato slice for a classic taste.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Burgers", "name": "Peri Peri Fried Chicken Burger", "price": 799, "sort_order": 6,
+      "description": "Comes with fried chicken breast topped with American cheese slices, crisp lettuce, tomato, onion, gherkins and spice peri peri sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Burgers", "name": "The CluckerStack", "price": 1199, "sort_order": 7,
+      "description": "Comes with 3 fried chicken breast top melted american cheese with lettuce, tomatoes, grilled onions and our signature sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Burgers", "name": "Mother Clucker Burger", "price": 799, "sort_order": 8,
+      "description": "Comes with fried Chicken breast, topped with melted American cheese with fresh crisp lettuce, tomato slices and home made signature sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Burgers", "name": "The BullStack", "price": 1199, "sort_order": 9,
+      "description": "Passionately prepared with 3 smashed beef patties topped with melted american cheese, lettuce, tomatoes, onion chutny, gherkins, Turkey rasher and our special home made sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Burgers", "name": "FoodHaus Special Burger", "price": 1199, "sort_order": 10,
+      "description": "Comes with Fried Chicken breast sandwiched between 2 smashed beef pattied, top with melted american cheese, house salad and our home made signature sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+
+    {
+      "category": "Wings", "name": "Thai Sweet Chilli Wings", "price": 799, "sort_order": 1,
+      "description": "5 pcs Crispy, juicy chicken wings coated in our signature sweet chilli sauce, the perfect mix of sticky sweetness and gentle heat. Packed with bold flavour and made for dipping, sharing, or enjoying all to yourself.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Wings", "name": "BBQ Wings", "price": 799, "sort_order": 2,
+      "description": "5 pcs Crispy, juicy chicken wings coated in our signature BBQ sauce with a delicious sticky finish and mild heat. Bold, flavourful, and perfect for dipping, sharing, or enjoying solo.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Wings", "name": "Peri Peri Wings", "price": 799, "sort_order": 3,
+      "description": "5 pcs Crispy, juicy chicken wings coated in our signature peri peri sauce, the perfect mix of sticky tasty and gentle heat. Packed with bold flavour and made for dipping, sharing, or enjoying all to yourself.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Wings", "name": "Sticky Korean Wings", "price": 799, "sort_order": 4,
+      "description": "5 pcs crispy, juicy chicken wings coated in our signature Korean sauce, delivering the perfect blend of sticky sweetness and mild heat. Bold, flavourful, and perfect for dipping or sharing.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Wings", "name": "Hot Chilli Wings", "price": 799, "sort_order": 5,
+      "description": "5 pcs Crispy Chicken Wings coated in our signature Hot Chilli sauce, with the perfect balance of sticky sweetness and gentle heat. Bold, juicy, and perfect for dipping or sharing.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Wings", "name": "Hot Honey Wings", "price": 799, "sort_order": 6,
+      "description": "5 pcs Crispy, juicy chicken wings coated in our signature hot honey sauce, the perfect mix of sticky sweetness and gentle heat. Packed with bold flavour and made for dipping, sharing, or enjoying all to yourself.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Wings", "name": "Peri Mayo Wings", "price": 799, "sort_order": 7,
+      "description": "5 pcs Crispy, juicy chicken wings coated in our signature peri mayo sauce, the perfect mix of sticky tasty and gentle heat. Packed with bold flavour and made for dipping, sharing, or enjoying all to yourself.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+
+    {
+      "category": "Wraps", "name": "BBQ Beef Wrap", "price": 699, "sort_order": 1,
+      "description": "BBQ Beef wrap comes with beef kima tomato lettuce onion cucumber and our home made signature BBQ sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Wraps", "name": "House Beef Wrap", "price": 699, "sort_order": 2,
+      "description": "Beef wrap comes with beef kima tomato lettuce onion cucumber and our home made signature sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Wraps", "name": "Peri Peri Chicken Wrap", "price": 699, "sort_order": 3,
+      "description": "Peri peri wrap comes with 2 Chicken strips tomato lettuce onion cucumber and our home made signature peri peri sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Wraps", "name": "Crispy Chicken Wrap", "price": 699, "sort_order": 4,
+      "description": "Comes with 2 chicken strips lettuce, tomato, onion, cucumber and our home made signature sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+
+    {
+      "category": "Loaded Fries", "name": "Beef Loaded Fries", "price": 799, "sort_order": 1,
+      "description": "Comes with fries and smashed beef patty covered with hot cheese sauce, burger sauce, homemade powder, topped with jalapeños, crispy onion, and chives.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Loaded Fries", "name": "Chicken Loaded Fries", "price": 799, "sort_order": 2,
+      "description": "Comes with fries covered with melted American cheese and chicken, lettuce, tomato, hot cheese sauce, burger sauce, mayo, peri oregano blend, and topped with crispy onion.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Loaded Fries", "name": "Chilli Chicken Loaded Fries", "price": 799, "sort_order": 3,
+      "description": "Comes with fries and American cheese slices, topped with chilli chicken pieces, crispy onion, lettuce, sesame seeds, and our signature sauce.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Loaded Fries", "name": "Haus Special Loaded Fries", "price": 999, "sort_order": 4,
+      "description": "Food Haus Special Loaded Fries are made with crispy golden fries topped generously with tender, well-seasoned chicken. The fries are layered with melted American cheese, creating a rich and creamy base.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+
+    {
+      "category": "Tenders", "name": "Peri Mayo Tenders", "price": 799, "sort_order": 1,
+      "description": "Five crispy, 100% boneless chicken tenders coated in a rich Peri Mayo glaze and topped with toasted sesame seeds. Crispy outside, juicy inside, with the perfect Peri Mayo flavour.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Tenders", "name": "Peri Peri Tenders", "price": 799, "sort_order": 2,
+      "description": "Five crispy, 100% boneless chicken tenders coated in a rich peri peri glaze, finished with a sprinkle of toasted sesame seeds. Crispy on the outside, tender and juicy on the inside, with the perfect balance of peri peri flavours.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Tenders", "name": "Sticky Korean Tenders", "price": 799, "sort_order": 3,
+      "description": "Five crispy 100% boneless chicken tenders coated in a rich Sticky Korean glaze, topped with toasted sesame seeds. Crispy outside, juicy inside, with the perfect balance of bold Korean flavors.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Tenders", "name": "BBQ Tenders", "price": 799, "sort_order": 4,
+      "description": "Five crispy, 100% boneless chicken tenders coated in a rich BBQ glaze and topped with toasted sesame seeds. Crispy outside, tender and juicy inside, with the perfect smoky BBQ flavour.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Tenders", "name": "Hot Chilli Tenders", "price": 799, "sort_order": 5,
+      "description": "Five crispy, 100% boneless chicken tenders coated in a rich Hot chilli glaze, finished with a sprinkle of toasted sesame seeds. Crispy on the outside, tender and juicy on the inside, with the perfect balance of Hot, tangy, and mildly spicy flavours.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Tenders", "name": "Sweet Chilli Tenders", "price": 799, "sort_order": 6,
+      "description": "Five crispy, 100% boneless chicken tenders coated in a rich Thai Sweet Chilli glaze and topped with toasted sesame seeds. Crispy outside, juicy inside, with the perfect sweet, tangy, and mildly spicy flavour.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true,
+      "_note": "Printed twice on the menu with identical name and price; deduplicated."
+    },
+    {
+      "category": "Tenders", "name": "Hot Honey Tenders", "price": 799, "sort_order": 7,
+      "description": "Five crispy, 100% boneless chicken tenders coated in a rich Hot Honey glaze and topped with toasted sesame seeds. Crispy, juicy, and packed with the perfect sweet and spicy Hot Honey flavour.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+
+    {
+      "category": "Sides", "name": "Curly Fries", "price": 399, "sort_order": 1,
+      "description": "Crispy curly fries seasoned to perfection with a delicious savoury crunch in every bite — the perfect side for any meal.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Sides", "name": "Mac and Cheese Bites", "price": 399, "sort_order": 2,
+      "description": "5 pcs crispy golden mac and cheese bites with a creamy, cheesy macaroni centre — crunchy on the outside, soft and indulgent inside. Perfect as a snack or side.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Sides", "name": "Onion Rings", "price": 399, "sort_order": 3,
+      "description": "5 pcs crispy golden onion rings coated in a light, crunchy batter and fried until perfectly golden — a classic savoury side with a satisfying crunch in every bite.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Sides", "name": "Mozzarella Sticks", "price": 399, "sort_order": 4,
+      "description": "5 pcs crispy golden mozzarella sticks filled with gooey melted cheese, served hot and perfect for dipping — a deliciously cheesy side or snack.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Sides", "name": "Chili & Cheese Nuggets", "price": 399, "sort_order": 5,
+      "description": "5 pcs Chili & Cheese Nuggets. Crispy golden nuggets filled with a rich blend of melted cheese and spicy chili peppers, delivering the perfect balance of crunch, creaminess, and [unclear] in every bite.",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    },
+    {
+      "category": "Sides", "name": "Chips", "price": 199, "sort_order": 6,
+      "description": "",
+      "allergens": null, "dietary_tags": [], "sold_out": false, "visible": true
+    }
+  ],
+  "offers": [
+    {
+      "name": "Buy 1 Get 1 Free on Wings",
+      "type": "buy_one_get_one_free",
+      "applies_to_category": "Wings",
+      "channel": "collection_only",
+      "source_text": "Buy 1 Get 1 Free On wings only on collection or Phone call Order",
+      "code": null,
+      "minimum_spend": 0,
+      "start": null,
+      "end": null,
+      "usage_limit": null,
+      "show_on_site": true,
+      "_note": "Phone orders also qualify per the print menu; the website offer applies to collection orders."
+    }
+  ]
+}

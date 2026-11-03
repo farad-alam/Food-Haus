@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "food-haus",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true },
+  // Non-secret config only. Secrets (Stripe keys, DB URL, email key) are set
+  // with `wrangler secret put` / the dashboard — never committed (R13.6).
+  "vars": {
+    "APP_ENV": "preview"
+  },
+  // Cache bindings for on-demand revalidation (open-next.config.ts).
+  // The ids below are placeholders for LOCAL dev only; create the real ones with
+  //   wrangler kv namespace create NEXT_INC_CACHE_KV
+  //   wrangler d1 create food-haus-tag-cache
+  // and paste the returned ids here before the first deploy.
+  "kv_namespaces": [
+    { "binding": "NEXT_INC_CACHE_KV", "id": "local-placeholder-replace-before-deploy" }
+  ],
+  "d1_databases": [
+    { "binding": "NEXT_TAG_CACHE_D1", "database_name": "food-haus-tag-cache", "database_id": "local-placeholder-replace-before-deploy" }
+  ],
+  "env": {
+    "production": {
+      "name": "food-haus-production",
+      "vars": { "APP_ENV": "production" }
+    }
+  }
+  // TODO (days 1-2, requirements section 12):
+  //  - "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<id>" }] for Postgres
+  //  - "triggers": { "crons": [...] } for daily report + expiring unpaid orders
+}

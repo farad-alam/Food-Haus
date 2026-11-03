@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+/* Black and orange brand (R: orange #F47B20). Black text on orange scores
+   ~7.7:1; white on orange only ~2.7:1, so buttons are always black-on-orange
+   and orange is never used as text on white (R10.12). */
+:root {
+  --brand: #f47b20;
+  --brand-dark: #d96a14;
+  --ink: #0b0b0b;
+  --surface: #151515;
+  --surface-2: #1f1f1f;
+  --line: #2e2e2e;
+  --text: #f5f5f5;
+  --muted: #b5b5b5;
+  --ok: #3ecf6e;
+  --bad: #ff6b5e;
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-ink: var(--ink);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+html {
+  background: var(--ink);
+  color-scheme: dark;
+  scroll-padding-top: 7rem;
+}
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* R10.2: tap targets at least 44 x 44 CSS px. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.65rem 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+.btn-primary {
+  background: var(--brand);
+  color: #000;
+}
+.btn-primary:hover {
+  background: var(--brand-dark);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--line);
+}
+.btn-ghost:hover {
+  border-color: var(--brand);
+}
+
+/* R10.12: visible focus. */
+:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.font-display {
+  font-family: var(--font-display), Impact, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
