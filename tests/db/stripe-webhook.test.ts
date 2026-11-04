@@ -58,6 +58,16 @@ describe.skipIf(!enabled)("Stripe webhook (real database)", () => {
     expect(await processStripeEvent(db, e, NOW)).toBe("duplicate");
   });
 
+  it("calls onPaid exactly once per paid order, never for replays or no-ops", async () => {
+    const o = await mkOrder();
+    const paid: number[] = [];
+    const e = ev("checkout.session.completed", o);
+    await processStripeEvent(db, e, NOW, (id) => paid.push(id));
+    await processStripeEvent(db, e, NOW, (id) => paid.push(id));
+    await processStripeEvent(db, ev("checkout.session.async_payment_succeeded", o), NOW, (id) => paid.push(id));
+    expect(paid).toEqual([o.id]);
+  });
+
   it("a different event id for an already-paid order is a harmless no-op", async () => {
     const o = await mkOrder();
     await processStripeEvent(db, ev("checkout.session.completed", o), NOW);

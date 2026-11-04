@@ -69,6 +69,8 @@ export type CheckoutDeps = {
   turnstileSecret?: string;
   fetchImpl?: typeof fetch;
   loadContext?: (db: Db) => Promise<CheckoutContext>;
+  /** Called once a CASH order is stored as received (card orders notify after payment). */
+  onOrderPlaced?: (orderId: number) => void;
 };
 
 export type CheckoutOutcome =
@@ -238,7 +240,14 @@ export async function createOrder(deps: CheckoutDeps, input: CheckoutInput): Pro
     throw e;
   }
 
-  if (input.paymentMethod === "cash") return { status: 201, body: { ok: true, token, number: created.number! } };
+  if (input.paymentMethod === "cash") {
+    try {
+      deps.onOrderPlaced?.(created.id);
+    } catch (e) {
+      console.error("onOrderPlaced hook failed", e instanceof Error ? e.message : e); // the order is already stored
+    }
+    return { status: 201, body: { ok: true, token, number: created.number! } };
+  }
 
   if (!deps.stripeSecretKey) return fail(503, "PAYMENTS_UNAVAILABLE", "Card payment is not available right now.");
   try {

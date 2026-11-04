@@ -1,4 +1,8 @@
+import { runAfter } from "@/lib/run-after";
 import { getDb } from "@/lib/db/client";
+import { emailSenderFromEnv } from "@/lib/email";
+import { sendOrderEmails } from "@/lib/order-email";
+import { SITE_URL } from "@/lib/shop";
 import { processStripeEvent, type StripeEvent } from "@/lib/stripe-webhook";
 import { verifyStripeSignature } from "@/lib/stripe-signature";
 
@@ -21,7 +25,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await processStripeEvent(getDb(), event, new Date());
+    const db = getDb();
+    const result = await processStripeEvent(db, event, new Date(), (id) =>
+      runAfter(() =>
+        sendOrderEmails({ db, sender: emailSenderFromEnv(), siteUrl: SITE_URL, shopTo: process.env.ORDER_NOTIFY_EMAIL || undefined }, id),
+      ),
+    );
     return Response.json({ received: true, result });
   } catch (e) {
     console.error("stripe webhook failed", event.id, e instanceof Error ? e.message : e);

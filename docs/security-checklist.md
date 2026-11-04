@@ -63,4 +63,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [ ] Alert on the `PAID ORDER NOT PENDING` / `amount mismatch` log lines
 - [ ] Schedule `expireUnpaidOrders` on a Cloudflare Cron Trigger (R8.7)
 - [ ] Cloudflare WAF rate-limit rule on `/api/checkout` (R6.14); app-level limits only cover cash orders
-- [ ] Order confirmation page `/order/[token]` and confirmation email (R5.5, R6.11)
+- [x] Order page `/order/[token]` (R5.5, R6.12): 128-bit token only (malformed tokens never reach the database), `noindex`, `no-store`, refreshes every 15 s while the order is active; shows no phone, email, address or note
+- [x] Order emails (R6.11, R11.10, R13.10): customer confirmation with allergen reminder and private link; shop alert with items and payment but no customer contact details; all customer text HTML-escaped; each email claimed atomically so it sends at most once; failures never affect the order
+- [ ] Email provider: `lib/email.ts` uses Resend. Set `EMAIL_API_KEY`, `EMAIL_FROM` (an address on the shop's domain with SPF/DKIM, Q10) and optionally `ORDER_NOTIFY_EMAIL`. Until then emails are skipped with a log line
+- [ ] Unknown order tokens return the not-found page with HTTP 200 (streaming); harmless, but revisit if a strict 404 is wanted

@@ -133,6 +133,10 @@ export const order = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     // R13.12: set when contact details are anonymised after retention.
     anonymisedAt: timestamp("anonymised_at", { withTimezone: true }),
+    // Set (atomically claimed) just before each email is sent so a retry or a
+    // replayed webhook can never send the same email twice.
+    confirmationEmailedAt: timestamp("confirmation_emailed_at", { withTimezone: true }),
+    shopNotifiedAt: timestamp("shop_notified_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("order_token_idx").on(t.token),

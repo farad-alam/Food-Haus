@@ -1,3 +1,6 @@
+import { runAfter } from "@/lib/run-after";
+import { emailSenderFromEnv } from "@/lib/email";
+import { sendOrderEmails } from "@/lib/order-email";
 import { checkoutSchema } from "@/lib/checkout-schema";
 import { createOrder } from "@/lib/checkout-service";
 import { getDb } from "@/lib/db/client";
@@ -31,9 +34,18 @@ export async function POST(request: Request) {
   }
 
   try {
+    const db = getDb();
     const outcome = await createOrder(
       {
-        db: getDb(),
+        db,
+        // Emails run after the response so a slow provider never delays the customer.
+        onOrderPlaced: (id) =>
+          runAfter(() =>
+            sendOrderEmails(
+              { db, sender: emailSenderFromEnv(), siteUrl: SITE_URL, shopTo: process.env.ORDER_NOTIFY_EMAIL || undefined },
+              id,
+            ),
+          ),
         now: new Date(),
         siteUrl: SITE_URL,
         // Only Cloudflare's header is trusted: X-Forwarded-For is client-controlled.

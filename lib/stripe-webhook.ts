@@ -41,7 +41,13 @@ export type EventResult =
   | "amount_mismatch"
   | "ignored";
 
-export async function processStripeEvent(db: Db, event: StripeEvent, now: Date): Promise<EventResult> {
+export async function processStripeEvent(
+  db: Db,
+  event: StripeEvent,
+  now: Date,
+  /** Called once, only when this event is the one that marked the order paid. */
+  onPaid?: (orderId: number) => void,
+): Promise<EventResult> {
   const [seen] = await db.select({ id: stripeEvent.id }).from(stripeEvent).where(eq(stripeEvent.id, event.id)).limit(1);
   if (seen) return "duplicate";
 
@@ -84,7 +90,14 @@ export async function processStripeEvent(db: Db, event: StripeEvent, now: Date):
         .returning({ id: order.id }),
       record,
     ]);
-    if (updated.length === 1) return "paid";
+    if (updated.length === 1) {
+      try {
+        onPaid?.(o.id);
+      } catch (e) {
+        console.error("onPaid hook failed", e instanceof Error ? e.message : e); // payment is already recorded
+      }
+      return "paid";
+    }
     if (o.paymentStatus === "paid") return "already_handled";
     // Paid, but the order is no longer pending (cancelled/rejected meanwhile).
     // Keep its status, record the money, and flag it for a manual refund.

@@ -90,6 +90,17 @@ describe.skipIf(!enabled)("createOrder (real database)", () => {
     expect(lines[0]).toMatchObject({ quantity: 2, unitPrice: itemPrice, lineTotal: itemPrice * 2 });
   });
 
+  it("notifies once for a placed cash order (hook for emails), and not for card or repeats", async () => {
+    await setup;
+    const placed: number[] = [];
+    const d = deps({ onOrderPlaced: (id) => placed.push(id) });
+    const i = input();
+    await createOrder(d, i);
+    await createOrder(d, i); // repeat of the same key
+    await createOrder(deps({ onOrderPlaced: (id) => placed.push(id) }), input({ paymentMethod: "card" })); // 503: no stripe key
+    expect(placed).toHaveLength(1);
+  });
+
   it("is idempotent: repeats and concurrent double-taps create exactly one order", async () => {
     await setup;
     const i = input();
