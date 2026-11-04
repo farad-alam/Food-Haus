@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { Bebas_Neue, Inter } from "next/font/google";
 import "./globals.css";
 import { BasketProvider, StickyBasketBar } from "@/components/basket";
@@ -58,7 +59,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* bottom padding reserves space for the sticky basket bar (R10.8) */}
           <div className="flex-1 pb-24">{children}</div>
 
-          <StickyBasketBar />
+          <Suspense fallback={null}>
+            <StickyBasketBar />
+          </Suspense>
 
           <footer className="border-t border-line bg-surface">
             <div className="mx-auto grid max-w-5xl gap-6 px-4 py-8 pb-28 text-sm text-muted sm:grid-cols-3">

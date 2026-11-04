@@ -7,6 +7,7 @@ import { rowsToMenu, type Menu } from "@/lib/menu-model";
 import { parsePostcode, priceOrder, type OfferRule, type PricingError, type Zone } from "@/lib/pricing";
 import type { CheckoutInput } from "@/lib/checkout-schema";
 import { createCheckoutSession, retrieveCheckoutSession } from "@/lib/stripe";
+import { isPromoError, promoBlocked, recordPromoFailure } from "@/lib/promo-throttle";
 import { newOrderToken } from "@/lib/token";
 import { verifyTurnstile } from "@/lib/turnstile";
 
@@ -146,6 +147,13 @@ export async function createOrder(deps: CheckoutDeps, input: CheckoutInput): Pro
     return fail(409, "SHOP_CLOSED", "We are closed right now. You can browse the menu and order when we reopen.");
   }
 
+  const hash = deps.clientIp && deps.ipHashKey ? await ipHash(deps.clientIp, deps.ipHashKey) : null;
+  const promo = input.promoCode || undefined;
+  // R6.14: promo-code guessing is throttled per client, here as well as in /api/quote.
+  if (promo && hash && (await promoBlocked(db, hash, now))) {
+    return fail(429, "PROMO_THROTTLED", "Too many promo code attempts. Please try again in a few minutes.");
+  }
+
   const priced = priceOrder({
     menu: ctx.menu,
     zones: ctx.zones,
@@ -158,9 +166,8 @@ export async function createOrder(deps: CheckoutDeps, input: CheckoutInput): Pro
     cashMaxPence: ctx.settings.cashMaxPence,
     now,
   });
+  if (!priced.ok && promo && hash && priced.errors.some((e) => isPromoError(e.code))) await recordPromoFailure(db, hash, now);
   if (!priced.ok) return fail(422, "INVALID_ORDER", priced.errors[0]?.message ?? "Your order could not be priced.", priced.errors);
-
-  const hash = deps.clientIp && deps.ipHashKey ? await ipHash(deps.clientIp, deps.ipHashKey) : null;
 
   // R6.15: daily caps on cash orders per phone and per IP (rolling 24h).
   if (input.paymentMethod === "cash") {

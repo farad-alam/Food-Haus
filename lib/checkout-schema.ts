@@ -27,7 +27,7 @@ const ukMobile = z
     return n;
   });
 
-const cartLine = z.strictObject({
+export const cartLine = z.strictObject({
   itemId: z.string().min(1).max(100),
   quantity: z.number().int().min(1).max(MAX_QUANTITY),
   optionIds: z.array(z.string().min(1).max(100)).max(10).default([]),
@@ -63,3 +63,15 @@ export const checkoutSchema = z
   });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+
+// Input for POST /api/quote: what the form needs priced. Same strictness and
+// limits as checkout; no personal details, so nothing sensitive is sent just
+// to preview a total.
+export const quoteSchema = z.strictObject({
+  items: z.array(cartLine).min(1).max(MAX_LINES),
+  orderType: z.enum(["delivery", "collection"]),
+  paymentMethod: z.enum(["card", "cash"]),
+  postcode: z.string().trim().max(10).optional(),
+  promoCode: z.string().trim().max(40).optional(),
+});
+export type QuoteInput = z.infer<typeof quoteSchema>;

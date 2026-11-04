@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
 import { formatPenceExact } from "@/lib/money";
 import {
@@ -97,7 +98,9 @@ export function AddToBasket({
  *  the page's bottom padding so nothing jumps (R10.8). */
 export function StickyBasketBar() {
   const { count, total } = useBasket();
-  if (count === 0) return null;
+  const path = usePathname();
+  // The bar is for browsing; checkout and order pages have their own summary.
+  if (count === 0 || path.startsWith("/checkout") || path.startsWith("/order")) return null;
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ink/95 p-3 backdrop-blur" role="region" aria-label="Basket">
       <Link href="/checkout" className="btn btn-primary mx-auto flex w-full max-w-xl justify-between">

@@ -67,3 +67,13 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Order emails (R6.11, R11.10, R13.10): customer confirmation with allergen reminder and private link; shop alert with items and payment but no customer contact details; all customer text HTML-escaped; each email claimed atomically so it sends at most once; failures never affect the order
 - [ ] Email provider: `lib/email.ts` uses Resend. Set `EMAIL_API_KEY`, `EMAIL_FROM` (an address on the shop's domain with SPF/DKIM, Q10) and optionally `ORDER_NOTIFY_EMAIL`. Until then emails are skipped with a log line
 - [ ] Unknown order tokens return the not-found page with HTTP 200 (streaming); harmless, but revisit if a strict 404 is wanted
+
+## Checkout form (`/checkout`) and quote API (`POST /api/quote`)
+- [x] The form shows server-computed prices only (from `/api/quote`, same `priceOrder` as checkout); the browser sends ids, quantities and details, never prices
+- [x] Quote requests carry no personal data; strict schema, 8 KB cap
+- [x] Promo-code guessing throttled per client (10 failures / 15 min) in both `/api/quote` and `/api/checkout` (R6.14); needs `SECRET_BOX_KEY` set and Cloudflare's `CF-Connecting-IP`
+- [x] One idempotency key per distinct order (changes when the basket or details change), so retries and double taps never duplicate an order
+- [x] Ordering is disabled with a message while the shop is closed or paused
+- [x] Turnstile widget loads only when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set (CSP allows `challenges.cloudflare.com`). Set the site key and `TURNSTILE_SECRET_KEY` together, and test it against real Turnstile: it is untested here
+- [ ] "Make it a Meal" (item options) cannot yet be chosen on the menu or in the basket; the API supports options
+- [ ] Prune old `auth_event` rows (login and promo counters) on a Cron Trigger
