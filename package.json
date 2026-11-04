@@ -9,17 +9,19 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx scripts/migrate.mts",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:seed": "tsx scripts/seed.mts",
+    "admin:create": "tsx scripts/create-admin.mts"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
     "@opennextjs/cloudflare": "^1.20.15",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.4",
-    "postgres": "^4.0.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "^4.6.7"

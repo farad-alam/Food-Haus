@@ -55,54 +55,114 @@ const POPULAR = [
   "Peri Peri Tenders",
 ];
 
-export function buildMenu(): Menu {
-  const categories: MenuCategory[] = seed.categories
+/** Flat rows as stored in Postgres (or derived from the seed file). */
+export type MenuRows = {
+  categories: { name: string; sortOrder: number; visible: boolean }[];
+  items: {
+    category: string;
+    name: string;
+    slug?: string;
+    description: string;
+    price: number;
+    allergens: string[] | null;
+    dietaryTags: string[];
+    soldOut: boolean;
+    visible: boolean;
+    sortOrder: number;
+  }[];
+  optionGroups: {
+    category: string; // category the group applies to
+    name: string;
+    required: boolean;
+    minPicks: number;
+    maxPicks: number;
+    options: { name: string; priceChange: number; sortOrder?: number }[];
+  }[];
+};
+
+/** Pure: turns flat rows into the Menu the site and pricing engine use. */
+export function rowsToMenu(rows: MenuRows): Menu {
+  const categories: MenuCategory[] = rows.categories
     .filter((c) => c.visible)
-    .sort((a, b) => a.sort_order - b.sort_order)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((c) => ({
       name: c.name,
       slug: slugify(c.name),
-      sortOrder: c.sort_order,
-      items: seed.items
+      sortOrder: c.sortOrder,
+      items: rows.items
         .filter((i) => i.category === c.name && i.visible)
-        .sort((a, b) => a.sort_order - b.sort_order)
-        .map((i) => ({
-          id: `${slugify(c.name)}-${slugify(i.name)}`,
-          slug: slugify(i.name),
-          category: c.name,
-          name: i.name,
-          description: i.description,
-          price: i.price,
-          allergens: i.allergens,
-          dietaryTags: i.dietary_tags,
-          soldOut: i.sold_out,
-          visible: i.visible,
-        })),
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((i) => {
+          const slug = i.slug ?? slugify(i.name);
+          return {
+            id: `${slugify(c.name)}-${slug}`,
+            slug,
+            category: c.name,
+            name: i.name,
+            description: i.description,
+            price: i.price,
+            allergens: i.allergens,
+            dietaryTags: i.dietaryTags,
+            soldOut: i.soldOut,
+            visible: i.visible,
+          };
+        }),
     }));
 
   const optionGroups: Record<string, MenuOptionGroup> = {};
-  for (const g of seed.option_groups) {
+  for (const g of rows.optionGroups) {
     const groupId = slugify(g.name);
-    for (const cat of g.applies_to_categories) {
-      optionGroups[cat] = {
-        id: groupId,
+    optionGroups[g.category] = {
+      id: groupId,
+      name: g.name,
+      required: g.required,
+      minPicks: g.minPicks,
+      maxPicks: g.maxPicks,
+      options: [...g.options]
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        .map((o) => ({
+          id: `${groupId}-${slugify(o.name).slice(0, 24)}`,
+          name: o.name,
+          priceChange: o.priceChange,
+        })),
+    };
+  }
+
+  const all = categories.flatMap((c) => c.items);
+  const popular = POPULAR.map((n) => all.find((i) => i.name === n)).filter((i): i is MenuItem => Boolean(i));
+
+  return { categories, optionGroups, popular };
+}
+
+/** Rows equivalent to data/menu-seed.json: used by tests and by db:seed. */
+export function seedRows(): MenuRows {
+  return {
+    categories: seed.categories.map((c) => ({ name: c.name, sortOrder: c.sort_order, visible: c.visible })),
+    items: seed.items.map((i) => ({
+      category: i.category,
+      name: i.name,
+      description: i.description,
+      price: i.price,
+      allergens: i.allergens,
+      dietaryTags: i.dietary_tags,
+      soldOut: i.sold_out,
+      visible: i.visible,
+      sortOrder: i.sort_order,
+    })),
+    optionGroups: seed.option_groups.flatMap((g) =>
+      g.applies_to_categories.map((category) => ({
+        category,
         name: g.name,
         required: g.required,
         minPicks: g.min_picks,
         maxPicks: g.max_picks,
-        options: g.options.map((o) => ({
-          id: `${groupId}-${slugify(o.name).slice(0, 24)}`,
-          name: o.name,
-          priceChange: o.price_change,
-        })),
-      };
-    }
-  }
+        options: g.options.map((o, n) => ({ name: o.name, priceChange: o.price_change, sortOrder: n })),
+      })),
+    ),
+  };
+}
 
-  const all = categories.flatMap((c) => c.items);
-  const popular = POPULAR.map((n) => all.find((i) => i.name === n)).filter(
-    (i): i is MenuItem => Boolean(i),
-  );
-
-  return { categories, optionGroups, popular };
+/** Menu straight from the seed file (tests, local fallback-free tooling). */
+export function buildMenu(): Menu {
+  return rowsToMenu(seedRows());
 }

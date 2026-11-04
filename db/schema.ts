@@ -196,9 +196,43 @@ export const adminUser = pgTable("admin_user", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(), // argon2id / bcrypt (R13.3)
   role: adminRole("role").notNull(),
-  totpSecretEnc: text("totp_secret_enc"), // R9.2 — required for owner/manager
+  totpSecretEnc: text("totp_secret_enc"), // R9.2 — AES-GCM envelope, see lib/auth/secret-box.ts
+  totpLastStep: integer("totp_last_step"), // replay protection: last accepted 30s step
+  disabled: boolean("disabled").notNull().default(false),
   lastLogin: timestamp("last_login", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Server-side sessions. Only the SHA-256 of the cookie token is stored, so a
+// database leak does not yield usable session cookies.
+export const adminSession = pgTable(
+  "admin_session",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    userId: integer("user_id").notNull().references(() => adminUser.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("admin_session_user_idx").on(t.userId)],
+);
+
+// Throttling counters (failed logins, reset requests), keyed by an opaque string.
+export const authEvent = pgTable(
+  "auth_event",
+  {
+    id: serial("id").primaryKey(),
+    key: text("key").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("auth_event_key_idx").on(t.key, t.at)],
+);
+
+export const passwordResetToken = pgTable("password_reset_token", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: integer("user_id").notNull().references(() => adminUser.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
 });
 
 // R9.13 (Must): the only record of who did what, given the shared kitchen login.
