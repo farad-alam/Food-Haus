@@ -122,6 +122,8 @@ export const order = pgTable(
     address: text("address"),
     postcode: text("postcode"),
     note: text("note"),
+    // R6.15: keyed hash of the client IP, only used to cap cash orders per IP.
+    ipHash: text("ip_hash"),
     rejectionReason: text("rejection_reason"),
     prepMinutes: integer("prep_minutes"),
     scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
@@ -137,6 +139,8 @@ export const order = pgTable(
     uniqueIndex("order_idempotency_idx").on(t.idempotencyKey),
     uniqueIndex("order_stripe_session_idx").on(t.stripeSessionId),
     index("order_status_idx").on(t.status, t.createdAt),
+    index("order_phone_idx").on(t.phone, t.createdAt),
+    index("order_ip_idx").on(t.ipHash, t.createdAt),
   ],
 );
 

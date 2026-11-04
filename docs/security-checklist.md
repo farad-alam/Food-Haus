@@ -25,7 +25,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Same-origin (Origin/Referer) check for state-changing requests (R13.4)
 
 ## Still to wire up for auth
-- [ ] Drizzle implementation of `AdminStore` (needs the database), including encrypting `totp_secret` at rest
+- [x] Drizzle implementation of `AdminStore` (`lib/auth/pg-store.ts`), TOTP seeds AES-256-GCM encrypted at rest (`SECRET_BOX_KEY`); integration-tested against Postgres
 - [ ] Login/logout/reset pages and server actions; session cookie (`HttpOnly`, `Secure`, `SameSite=Lax`, `__Host-` prefix)
 - [ ] Enforce `canAccessPath` in a server layout and `can()` inside every server action
 - [ ] 2FA enrolment screen (QR from `otpauth://` URI) and one-time recovery codes
@@ -48,3 +48,17 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [ ] CSV export restricted to Owner/Manager (R9.11)
 - [ ] Encrypted daily backups; one restore tested and recorded (R13.8)
 - [ ] A Kitchen login cannot open any page above its role (acceptance, section 13)
+
+## Checkout API (`POST /api/checkout`)
+- [x] Strict schema: unknown keys (e.g. a client-sent `total`) rejected; body capped at 16 KB; JSON content type required
+- [x] Prices, fees, discounts and totals computed server-side from the database; browser prices never read (R6.14)
+- [x] Idempotent by client key, including concurrent double-taps (R13.7); order + lines inserted in one transaction
+- [x] Shop paused / closed refused before any write; no opening hours configured = closed (R6.8)
+- [x] Promo usage limit reserved atomically; released on failure and when unpaid card orders expire
+- [x] Cash caps per phone and per IP (R6.15); IP stored only as an HMAC, taken only from `CF-Connecting-IP`
+- [x] Card orders stay `pending_payment`; Stripe session amount equals the stored total; 31-minute expiry (R8.2)
+- [x] Turnstile verified server-side when `TURNSTILE_SECRET_KEY` is set; fails closed
+- [ ] Stripe webhook handler (R8.3-R8.5): mark paid only from the signed webhook; must tolerate an order already cancelled by the expiry sweeper
+- [ ] Schedule `expireUnpaidOrders` on a Cloudflare Cron Trigger (R8.7)
+- [ ] Cloudflare WAF rate-limit rule on `/api/checkout` (R6.14); app-level limits only cover cash orders
+- [ ] Order confirmation page `/order/[token]` and confirmation email (R5.5, R6.11)
