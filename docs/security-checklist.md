@@ -58,7 +58,9 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Cash caps per phone and per IP (R6.15); IP stored only as an HMAC, taken only from `CF-Connecting-IP`
 - [x] Card orders stay `pending_payment`; Stripe session amount equals the stored total; 31-minute expiry (R8.2)
 - [x] Turnstile verified server-side when `TURNSTILE_SECRET_KEY` is set; fails closed
-- [ ] Stripe webhook handler (R8.3-R8.5): mark paid only from the signed webhook; must tolerate an order already cancelled by the expiry sweeper
+- [x] Stripe webhook `POST /api/stripe/webhook` (R8.3-R8.5): signature checked on the raw body (5-minute tolerance) before parsing; paid only from `checkout.session.completed` (when `payment_status` is `paid`) or `async_payment_succeeded`; event ids stored in the same transaction as the change; session id, amount and currency must match the stored order; failure/expiry cancel and release the promo use; a payment for an already-cancelled order is recorded and logged (`PAID ORDER NOT PENDING`) for manual refund
+- [ ] In Stripe, add the endpoint `https://<site>/api/stripe/webhook` with those four events plus `checkout.session.expired`, set `STRIPE_WEBHOOK_SECRET`, and test Pay by Bank in test mode (Stripe's docs do not say which event it fires)
+- [ ] Alert on the `PAID ORDER NOT PENDING` / `amount mismatch` log lines
 - [ ] Schedule `expireUnpaidOrders` on a Cloudflare Cron Trigger (R8.7)
 - [ ] Cloudflare WAF rate-limit rule on `/api/checkout` (R6.14); app-level limits only cover cash orders
 - [ ] Order confirmation page `/order/[token]` and confirmation email (R5.5, R6.11)
