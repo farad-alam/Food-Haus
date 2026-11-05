@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "offer_code_idx" ON "offer" USING btree (lower("code")) WHERE "offer"."code" is not null;

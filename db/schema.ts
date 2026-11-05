@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -96,7 +97,10 @@ export const offer = pgTable("offer", {
   usageLimit: integer("usage_limit"),
   usedCount: integer("used_count").notNull().default(0),
   showOnSite: boolean("show_on_site").notNull().default(true),
-});
+}, (t) => [
+  // A promo code identifies one offer: unique ignoring case (the pricing engine matches case-insensitively).
+  uniqueIndex("offer_code_idx").on(sql`lower(${t.code})`).where(sql`${t.code} is not null`),
+]);
 
 export const order = pgTable(
   "order",

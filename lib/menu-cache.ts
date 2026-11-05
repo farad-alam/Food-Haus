@@ -10,10 +10,20 @@ import { revalidateTag } from "next/cache";
 export function refreshMenuCache(): void {
   try {
     revalidateTag("menu", { expire: 0 });
+    revalidateTag("offers", { expire: 0 }); // offers show category names, so a category change must refresh them too
   } catch (e) {
     // Outside a Next request (unit tests) there is nothing to refresh. In
     // production a failure is loud, but must not fail the admin's save: the
     // cache also expires by itself within the hour.
     if (!process.env.VITEST) console.error("menu cache refresh failed", e instanceof Error ? e.message : e);
+  }
+}
+
+/** After an offer is created, edited or deleted: the public offers pages rebuild on their next view. */
+export function refreshOffersCache(): void {
+  try {
+    revalidateTag("offers", { expire: 0 });
+  } catch (e) {
+    if (!process.env.VITEST) console.error("offers cache refresh failed", e instanceof Error ? e.message : e);
   }
 }

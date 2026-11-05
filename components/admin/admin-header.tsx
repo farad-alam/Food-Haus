@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-export function AdminHeader({ email, role, canSettings, canMenu }: { email: string; role: string; canSettings: boolean; canMenu: boolean }) {
+export function AdminHeader({ email, role, canSettings, canMenu, canOffers }: { email: string; role: string; canSettings: boolean; canMenu: boolean; canOffers: boolean }) {
   const [busy, setBusy] = useState(false);
   const path = usePathname();
   const link = (href: string, label: string) => (
-    <Link href={href} aria-current={path === href ? "page" : undefined} className={`inline-flex min-h-[44px] items-center px-2 font-bold ${path === href ? "text-brand" : "text-text"}`}>{label}</Link>
+    <Link href={href} aria-current={path === href ? "page" : undefined} className={`inline-flex min-h-[44px] items-center px-2 text-sm font-bold sm:text-base ${path === href ? "text-brand" : "text-text"}`}>{label}</Link>
   );
   async function signOut() {
     setBusy(true);
@@ -22,11 +22,12 @@ export function AdminHeader({ email, role, canSettings, canMenu }: { email: stri
   }
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-ink/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2">
-        <p className="whitespace-nowrap font-display text-2xl leading-none text-brand">FOOD HAUS<span className="hidden text-text sm:inline"> ADMIN</span></p>
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:gap-3 sm:px-4">
+        <p className="hidden whitespace-nowrap font-display text-2xl leading-none text-brand sm:block">FOOD HAUS<span className="text-text"> ADMIN</span></p>
         <nav aria-label="Admin" className="flex items-center">
           {link("/admin", "Orders")}
           {canMenu && link("/admin/menu", "Menu")}
+          {canOffers && link("/admin/offers", "Offers")}
           {canSettings && link("/admin/settings", "Settings")}
         </nav>
         <div className="flex items-center gap-3 text-sm">

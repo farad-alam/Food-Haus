@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AddToBasket } from "@/components/basket";
+import { CategoryOffers } from "@/components/live-offers";
 import { getMenu } from "@/lib/menu";
 import { ALLERGENS } from "@/lib/menu-constants";
 import { formatPence, formatPenceExact } from "@/lib/money";
@@ -40,11 +42,9 @@ export default async function MenuPage() {
         {menu.categories.map((cat) => (
           <section key={cat.slug} id={cat.slug} aria-labelledby={`${cat.slug}-h`}>
             <h2 id={`${cat.slug}-h`} className="font-display text-3xl text-brand">{cat.name}</h2>
-            {cat.name === "Wings" && (
-              <p className="mt-1 inline-block rounded-lg bg-brand px-3 py-1 text-sm font-bold text-black">
-                Buy 1 Get 1 Free on wings — collection only
-              </p>
-            )}
+            <Suspense fallback={null}>
+              <CategoryOffers category={cat.name} />
+            </Suspense>
             {menu.optionGroups[cat.name] && (
               <p className="mt-1 text-sm text-muted">
                 {menu.optionGroups[cat.name].name}: add {formatPenceExact(menu.optionGroups[cat.name].options[0].priceChange)}

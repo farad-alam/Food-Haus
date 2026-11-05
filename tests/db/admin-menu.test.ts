@@ -163,15 +163,28 @@ describe.skipIf(!enabled)("admin menu manager (real database)", () => {
     it("reorder needs the exact full list; swapping two categories sticks; seeded order is untouched", async () => {
       const a = await newCat(`Order A ${tag}`);
       const b = await newCat(`Order B ${tag}`);
-      const ids = (await view()).categories.map((c: { id: number }) => c.id) as number[];
-      expect((await reorderCategories(req("POST", "/api/admin/menu/categories/reorder", "manager", { ids: ids.slice(1) }))).status).toBe(400); // missing one
-      expect((await reorderCategories(req("POST", "/api/admin/menu/categories/reorder", "manager", { ids: [...ids, ids[0]] }))).status).toBe(400); // duplicate
-      expect((await reorderCategories(req("POST", "/api/admin/menu/categories/reorder", "manager", { ids: [...ids, 2_000_000_000] }))).status).toBe(400);
-      const swapped = ids.map((id) => (id === a ? b : id === b ? a : id));
-      expect((await reorderCategories(req("POST", "/api/admin/menu/categories/reorder", "manager", { ids: swapped }))).status).toBe(200);
+      const reorder = (ids: number[]) => reorderCategories(req("POST", "/api/admin/menu/categories/reorder", "manager", { ids }));
+      // The API refuses a stale list by design. Other test files add and remove categories at the same
+      // time, so read-then-write is retried if the list changed in between.
+      let ids: number[] = [];
+      let swappedOk = false;
+      for (let attempt = 0; attempt < 5 && !swappedOk; attempt++) {
+        ids = (await view()).categories.map((c: { id: number }) => c.id) as number[];
+        const swapped = ids.map((id) => (id === a ? b : id === b ? a : id));
+        swappedOk = (await reorder(swapped)).status === 200;
+      }
+      expect(swappedOk).toBe(true);
       const order = (await view()).categories.map((c: { id: number }) => c.id);
       expect(order.indexOf(b)).toBeLessThan(order.indexOf(a));
-      expect(order.slice(0, ids.indexOf(a))).toEqual(ids.slice(0, ids.indexOf(a))); // everything before is unchanged
+      // refusals (these never write, so concurrency cannot affect them)
+      const current = (await view()).categories.map((c: { id: number }) => c.id) as number[];
+      expect((await reorder(current.slice(1))).status).toBe(400); // missing one
+      expect((await reorder([...current, current[0]])).status).toBe(400); // duplicate
+      expect((await reorder([...current, 2_000_000_000])).status).toBe(400); // unknown id
+      // seeded categories keep their relative order (the swap only moved our two)
+      const seeded = ["Burgers", "Wings", "Wraps", "Loaded Fries", "Tenders", "Sides"];
+      const names = (await view()).categories.map((c: { name: string }) => c.name).filter((n: string) => seeded.includes(n));
+      expect(names).toEqual(seeded);
     });
   });
 
@@ -190,7 +203,6 @@ describe.skipIf(!enabled)("admin menu manager (real database)", () => {
 
     it("rejects bad input and unknown categories without writing", async () => {
       const catId = await newCat(`Bad ${tag}`);
-      const before = (await view()).items.length;
       const bads: Record<string, unknown>[] = [
         { price: 0 }, { price: 7.5 }, { price: 50_001 }, { name: "" }, { name: "###" }, { allergens: ["dairy"] }, { allergens: ["milk", "milk"] },
         { dietaryTags: ["gluten-free"] }, { slug: "hack" }, { id: 1 }, { categoryId: 2_000_000_000 }, { soldOut: "no" },
@@ -199,7 +211,8 @@ describe.skipIf(!enabled)("admin menu manager (real database)", () => {
         const r = await postItem(req("POST", "/api/admin/menu/items", "manager", itemBody(catId, b)));
         expect([JSON.stringify(b), r.status === 400]).toEqual([JSON.stringify(b), true]);
       }
-      expect((await view()).items.length).toBe(before);
+      // nothing of ours was written (other test files may add their own rows at the same time)
+      expect((await view()).items.filter((i: { name: string }) => i.name === `Item ${tag}`)).toEqual([]);
     });
 
     it("edits keep the slug; allergen changes are audited with before and after; null -> [] -> list", async () => {

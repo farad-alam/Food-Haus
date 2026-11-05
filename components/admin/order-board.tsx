@@ -155,7 +155,7 @@ export function OrderBoard() {
   return (
     <div className="mx-auto max-w-6xl px-4 pb-16">
       {(lost || signedOut) && (
-        <div role="alert" className="sticky top-[57px] z-20 -mx-4 bg-red-600 px-4 py-3 text-center text-lg font-bold text-white">
+        <div role="alert" className="sticky top-[61px] z-20 -mx-4 bg-red-600 px-4 py-3 text-center text-lg font-bold text-white">
           {signedOut ? (
             <>You have been signed out, so orders may be missed. <Link href="/admin/login" className="underline">Sign in again</Link></>
           ) : (

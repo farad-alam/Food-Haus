@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RestaurantJsonLd } from "@/components/json-ld";
+import { Suspense } from "react";
 import { AddToBasket } from "@/components/basket";
+import { OfferStrip } from "@/components/live-offers";
 import { getMenu } from "@/lib/menu";
 import { formatPence } from "@/lib/money";
 import { fullAddress, mapsLink, shop } from "@/lib/shop";
@@ -36,10 +38,10 @@ export default async function Home() {
               Call {shop.phoneDisplay}
             </a>
           </div>
-          {/* Offer strip — replaced by the live offers module (R9.8) */}
-          <p className="mt-6 inline-block rounded-xl bg-brand px-4 py-2 text-sm font-bold text-black">
-            Buy 1 Get 1 Free on wings — collection only
-          </p>
+          {/* Live offers (R9.8): only what the owner is running right now */}
+          <Suspense fallback={null}>
+            <OfferStrip />
+          </Suspense>
         </div>
       </section>
 

@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import { guard, jsonResponse, type AdminUser } from "./guard";
 import { idFromParam, readJson, statusFor } from "./http";
-import { refreshMenuCache } from "@/lib/menu-cache";
+import { refreshMenuCache, refreshOffersCache } from "@/lib/menu-cache";
 import type { Result } from "./settings";
 
 // One wrapper for a state-changing admin route: authorise + origin-check, read
@@ -16,6 +16,7 @@ export function adminRoute<S extends z.ZodType | null, T extends object = object
   /** Name of the numeric route param (e.g. "id"); a malformed value is a 404. */
   idParam?: string;
   refreshMenu?: boolean;
+  refreshOffers?: boolean;
   successStatus?: number;
   run: (c: { user: AdminUser; id: number; data: S extends z.ZodType ? z.infer<S> : undefined }) => Promise<Result<T>>;
 }) {
@@ -39,6 +40,7 @@ export function adminRoute<S extends z.ZodType | null, T extends object = object
       const r = await opts.run({ user: g.user, id, data });
       if (!r.ok) return jsonResponse(statusFor(r.code), r);
       if (opts.refreshMenu) refreshMenuCache();
+      if (opts.refreshOffers) refreshOffersCache();
       return jsonResponse(opts.successStatus ?? 200, r);
     } catch (e) {
       console.error("admin route failed", e instanceof Error ? e.message : e);

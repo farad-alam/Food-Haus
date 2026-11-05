@@ -124,3 +124,17 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] A stale option (the owner renamed or removed it after the customer added it) shows "Unknown option for ..." and cannot be ordered at a wrong price; the line can be removed
 - [ ] The seeded "Make it a Meal" option is named "Meal (fries + drink — contents TBC with owner)": placeholder text from the print-menu extraction that customers would now SEE. The owner must confirm the contents and rename it in the Menu manager before launch. (Renaming an option changes its id, so anyone with the old option in their basket is asked to re-add it)
 - [ ] Test note: Next.js reuses its cached copy of the menu across builds for up to an hour, so after changing menu data directly in the database, delete `.next` before building (a normal deployment builds fresh)
+
+## Offers and promo codes (`/admin/offers`)
+- [x] Owner and manager only (`offers.edit`); every change authorised, origin-checked, strictly validated, and audited with before/after in one transaction (R9.13)
+- [x] The four types in R6.7: percentage, fixed amount, free delivery, buy-one-get-one on a category; each with channel (any / delivery / collection), minimum spend, start and end, usage limit, optional promo code, and "show on website"
+- [x] Combinations the pricing engine would silently ignore are refused (e.g. free delivery limited to collection; a percentage outside 1-100; a category on a non-bogof offer; end before start)
+- [x] Start and end are entered in UK time and converted on the server with daylight-saving rules (the hour skipped in March is refused; the repeated October hour resolves to the earlier instant)
+- [x] Promo codes are 3-20 letters/numbers, stored upper-case, and unique ignoring case, enforced by a database index as well as the app (race-safe). Guessing is throttled (see checkout)
+- [x] The admin list shows status (active / scheduled / ended / used up), what the offer does in the same words customers read (one wording function shared with the website), and how many times it was used. Usage counts reservations made at checkout; they are released when an unpaid card order expires or an order is rejected
+- [x] A used offer cannot be deleted (orders keep a reference to it); "End now" stops it instead
+- [x] Public site is live: the home-page strip, `/offers` and the menu's category badges read the offers table instead of hard-coded text. Only offers marked "show on website" are published, and only while running: the cache holds the raw list (expired instantly on every admin save) and the running/ended decision is made at request time, so an expired offer cannot linger
+- [x] Integration tests show saved offers drive the real quote and checkout code (codes in any case, minimum spend, channel, scheduling, editing dates, a usage limit enforced by a real checkout, automatic bogof scoped to its category); a browser run covered create, duplicate code, checkout discount, usage, End now, scheduling, hide/show
+- [ ] A promo code marked "show on website" is printed publicly; the form warns the owner. Codes meant for specific people should leave that box unticked
+- [ ] Offers do not stack: a customer gets one offer per order (the typed code, or the best automatic one). The form says so. Combining offers would be a pricing-engine change
+- [ ] Offers are not limited per customer (one use per phone number or email); only a total usage limit exists
