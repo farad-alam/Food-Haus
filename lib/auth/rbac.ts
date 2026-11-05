@@ -12,6 +12,7 @@ export const PERMISSIONS = [
   "orders.view",
   "orders.update",
   "orders.refund",
+  "orders.history", // search and open past orders (customer details), dashboard figures live under reports.view
   "orders.export",
   "menu.edit",
   "offers.edit",
@@ -27,6 +28,7 @@ const MATRIX: Record<Role, ReadonlySet<Permission>> = {
   manager: new Set<Permission>([
     "orders.view",
     "orders.update",
+    "orders.history",
     "orders.export",
     "menu.edit",
     "offers.edit",
@@ -47,6 +49,7 @@ export function can(role: Role | null | undefined, permission: Permission): bool
 // without a rule fails closed instead of open.
 const ROUTES: ReadonlyArray<readonly [string, Permission]> = [
   ["/admin/orders", "orders.view"],
+  ["/admin/history", "orders.history"],
   ["/admin/export", "orders.export"],
   ["/admin/menu", "menu.edit"],
   ["/admin/offers", "offers.edit"],

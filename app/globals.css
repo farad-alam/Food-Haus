@@ -103,3 +103,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .flash-card { animation: none; box-shadow: 0 0 0 4px var(--brand); }
 }
+
+/* Printing an order receipt (R9.11): plain black on white, no site chrome. */
+@media print {
+  html, body { background: #fff !important; color: #000 !important; }
+  .receipt, .receipt * { color: #000 !important; background: transparent !important; border-color: #000 !important; }
+  a { text-decoration: none; }
+}

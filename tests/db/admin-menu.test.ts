@@ -87,7 +87,9 @@ describe.skipIf(!enabled)("admin menu manager (real database)", () => {
   };
 
   it("is owner/manager only: no session 401, kitchen 403 on every route, cross-site 403, nothing changes", async () => {
-    const before = await view();
+    // judged on THIS file's rows only: other test files add and remove their own categories concurrently
+    const mine = async () => { const v = await view(); return { cats: v.categories.filter((c: { name: string }) => c.name.includes(tag)), items: v.items.filter((i: { name: string }) => i.name.includes(tag)) }; };
+    const before = await mine();
     const calls: [string, (who: string | null, origin?: string | null) => Promise<Response>][] = [
       ["GET", (w) => getMenu(req("GET", "/api/admin/menu", w))],
       ["POST category", (w, o) => postCategory(req("POST", "/api/admin/menu/categories", w, { name: `Nope ${tag}` }, o))],
@@ -106,7 +108,7 @@ describe.skipIf(!enabled)("admin menu manager (real database)", () => {
       expect([name, (await call("kitchen")).status]).toEqual([name, 403]);
       if (name !== "GET") expect([name, (await call("manager", "https://evil.example")).status]).toEqual([name, 403]);
     }
-    expect(await view()).toEqual(before);
+    expect(await mine()).toEqual(before);
   });
 
   describe("categories", () => {
@@ -313,14 +315,16 @@ describe.skipIf(!enabled)("admin menu manager (real database)", () => {
       const catId = await newCat(`Req ${tag}`);
       await putOptions(req("PUT", `/api/admin/menu/options/${catId}`, "manager", { ...group, required: true, minPicks: 0 }), ctx(catId));
       expect((await publicMenu()).optionGroups[`Req ${tag}`].minPicks).toBe(1);
-      const before = await view();
+      // compare only THIS category's data: other test files add and remove their own categories at the same time
+      const mineOf = async () => { const v = await view(); return { group: v.optionGroups.filter((g: { categoryId: number }) => g.categoryId === catId), items: v.items.filter((i: { categoryId: number }) => i.categoryId === catId) }; };
+      const before = await mineOf();
       const bads = [
         { ...group, maxPicks: 3 }, { ...group, minPicks: 2 }, { ...group, options: [] },
         { ...group, options: [{ name: "A", priceChange: -5 }] }, { ...group, options: [{ name: "Same", priceChange: 1 }, { name: "same", priceChange: 2 }] },
         { ...group, extra: 1 }, { ...group, name: "" },
       ];
       for (const b of bads) expect((await putOptions(req("PUT", `/api/admin/menu/options/${catId}`, "manager", b), ctx(catId))).status).toBe(400);
-      expect(await view()).toEqual(before);
+      expect(await mineOf()).toEqual(before);
       expect((await putOptions(req("PUT", "/api/admin/menu/options/2000000000", "manager", group), ctx(2_000_000_000))).status).toBe(404);
     });
 
