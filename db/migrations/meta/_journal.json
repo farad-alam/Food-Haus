@@ -29,6 +29,13 @@
       "when": 1793856238305,
       "tag": "0003_offer_code_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793903905880,
+      "tag": "0004_sales_report",
+      "breakpoints": true
     }
   ]
 }

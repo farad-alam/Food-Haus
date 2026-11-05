@@ -247,6 +247,16 @@ export const passwordResetToken = pgTable("password_reset_token", {
   usedAt: timestamp("used_at", { withTimezone: true }),
 });
 
+// R9.12: one row per trading day whose sales email has been sent. The row is
+// CLAIMED before sending (primary key = at most one claimant) and removed again
+// if sending fails, so a report goes out exactly once and failures retry.
+export const salesReport = pgTable("sales_report", {
+  day: date("day").notNull().primaryKey(), // the trading day, UK date
+  sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  recipients: integer("recipients").notNull().default(0),
+  summary: jsonb("summary"), // the totals that were emailed (no customer data)
+});
+
 // R9.13 (Must): the only record of who did what, given the shared kitchen login.
 export const auditLog = pgTable("audit_log", {
   id: serial("id").primaryKey(),

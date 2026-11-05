@@ -135,7 +135,8 @@ describe.skipIf(!enabled)("maintenance (real database)", () => {
       expect(res.headers.get("cache-control")).toBe("no-store");
       const body = await res.json();
       expect(body).toMatchObject({ ok: true, errors: [] });
-      expect(Object.keys(body).sort()).toEqual(["errors", "expiredOrders", "ok", "prunedAuthEvents", "prunedResetTokens", "prunedSessions", "prunedStripeEvents"]);
+      expect(Object.keys(body).sort()).toEqual(["dailyReports", "errors", "expiredOrders", "ok", "prunedAuthEvents", "prunedResetTokens", "prunedSessions", "prunedStripeEvents"]);
+      expect(Array.isArray(body.dailyReports)).toBe(true);
       expect((await get(stale.id)).status).toBe("cancelled");
     });
   });

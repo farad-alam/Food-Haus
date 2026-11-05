@@ -145,7 +145,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] `POST /api/cron/maintenance` is protected by `CRON_SECRET` (Bearer, constant-time compare). With no secret (or one under 16 characters) it refuses everything with 503, so it can never be left open; wrong or missing credentials get 401 and do no work; GET is 405. The response contains counts only
 - [x] `cloudflare/worker.ts` wraps the OpenNext worker and adds the `scheduled` handler, which calls that route through the same worker; a non-2xx response or a missing secret makes the cron run FAIL visibly in Cloudflare's logs. `wrangler.jsonc` has `"main": "cloudflare/worker.ts"` and `"crons": ["*/5 * * * *"]`
 - [ ] **Deployment steps (not testable here, needs your Cloudflare account):** run `openssl rand -base64 32 | wrangler secret put CRON_SECRET` (for production AND preview), deploy, then in the Cloudflare dashboard open Workers > food-haus > Triggers and confirm the cron appears and its first runs succeed. The custom worker entry was verified against a fake worker and the route against the real database, but not on Cloudflare's own runtime: do one preview deploy and look at the cron logs before relying on it
-- [ ] The daily sales report (R9.12) will add a second cron
+- [x] The daily sales report (R9.12) is sent by the same 5-minute cron (see "Daily sales email" below); no second cron is needed
 - [ ] Personal data retention (R13.12: anonymising old orders' contact details) is not scheduled yet
 
 ## Closed notice and public opening hours (R6.8, R5.1, R5.6)
@@ -156,3 +156,16 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] The contact page shows the weekly opening hours from the admin settings (nothing is published until the owner has entered them)
 - [x] Whether the shop is open right now is computed at request time from the clock; only the raw schedule is cached (expired at once by every admin save of hours, closed days or the pause switch). A page therefore cannot say "open" after closing time, and pausing shows on the very next page view (browser-verified)
 - [ ] Opening hours are not yet in the footer or in the JSON-LD structured data (R11.2, R5.1 "hours, address and map" block)
+
+## Daily sales email (R9.12)
+- [x] Sent after closing time to the owner accounts (active users with the owner role; managers, kitchen and disabled owners never receive it). It goes out from the existing 5-minute cron once a trading day is over, 15 minutes after that day's last closing time, so card payments in flight have settled
+- [x] Content: orders, revenue, average order, paid online vs cash, delivery vs collection, discounts given, delivery fees, top 5 items (quantity and revenue), rejected / expired-unpaid / refunded counts (reported separately, never counted as sales), and a last-7-days line. TOTALS ONLY: customer names, phones, emails and addresses are never passed to the report code, and tests check none can appear
+- [x] Trading days, not calendar days: orders placed after midnight during a Friday-night shift belong to Friday's report. Consecutive days tile exactly (no order counted twice or dropped), including overnight shifts and the 23- and 25-hour days at the clock changes (tested over several schedules and both changes)
+- [x] Sent exactly once: a database row claims the day before sending, so two overlapping cron runs cannot both send; if every send fails the claim is released and the next run (5 minutes later) retries, and the cron run FAILS visibly in Cloudflare; if only some recipients fail the day stays claimed so nobody gets a duplicate. Error messages never contain an address
+- [x] A day with no opening hours sends nothing unless something happened (then at 23:30 UK time). Reports BEGIN WITH THE FIRST SALE: an owner who has entered hours but not launched yet does not get a "no orders" email every day. After that, an open day with no orders gets a "no orders" email
+- [x] Catches up yesterday if a night was missed (looks at yesterday and today only). With email not configured the job reports "not configured", claims nothing and does not count as a failure, so it sends once email is set up
+- [x] `GET /api/admin/reports?day=YYYY-MM-DD` (owner and manager, `reports.view`) returns the same totals the email is built from (no customer details); the groundwork for the dashboard
+- [x] Verified end to end through the real cron route with a recording stand-in for the email API: one email to the owner, correct figures, no customer details, claim stored, second run sends nothing, provider outage fails the run and the next run recovers
+- [ ] Needs real email set up to receive it: `EMAIL_API_KEY` and `EMAIL_FROM` (an address on the shop's domain with SPF/DKIM, Q10) plus at least one owner account (`npm run admin:create`). `EMAIL_API_URL` is for staging/tests only; leave it empty in production
+- [ ] The dashboard "today and last 7 days" half of R9.12 is not built yet (the endpoint above has the numbers)
+- [ ] The report does not yet include card fees, refunds made in Stripe (only orders marked refunded), or VAT; revenue is the order totals

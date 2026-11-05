@@ -7,10 +7,10 @@ export interface EmailSender {
   send(m: EmailMessage): Promise<void>;
 }
 
-export function resendSender(apiKey: string, from: string, fetchImpl: typeof fetch = fetch): EmailSender {
+export function resendSender(apiKey: string, from: string, fetchImpl: typeof fetch = fetch, baseUrl = "https://api.resend.com"): EmailSender {
   return {
     async send(m) {
-      const res = await fetchImpl("https://api.resend.com/emails", {
+      const res = await fetchImpl(`${baseUrl}/emails`, {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({ from, to: [m.to], subject: m.subject, text: m.text, html: m.html }),
@@ -25,5 +25,6 @@ export function resendSender(apiKey: string, from: string, fetchImpl: typeof fet
 export function emailSenderFromEnv(): EmailSender | null {
   const key = process.env.EMAIL_API_KEY;
   const from = process.env.EMAIL_FROM;
-  return key && from ? resendSender(key, from) : null;
+  // EMAIL_API_URL lets staging or tests point at a Resend-compatible endpoint; production leaves it unset.
+  return key && from ? resendSender(key, from, fetch, process.env.EMAIL_API_URL || undefined) : null;
 }

@@ -1,5 +1,7 @@
 import { getDb } from "@/lib/db/client";
+import { emailSenderFromEnv } from "@/lib/email";
 import { runMaintenance } from "@/lib/maintenance";
+import { runDailyReports } from "@/lib/sales-report-job";
 
 // POST /api/cron/maintenance: called by the Cloudflare Cron Trigger, never by a
 // browser. Protected by a shared secret (CRON_SECRET) sent as a Bearer token and
@@ -27,7 +29,12 @@ export async function POST(request: Request) {
   if (!token || !(await sameSecret(token, secret))) return Response.json({ ok: false, code: "UNAUTHORIZED" }, { status: 401, headers: noStore });
 
   try {
-    const result = await runMaintenance(getDb(), new Date());
+    const db = getDb();
+    const now = new Date();
+    const maintenance = await runMaintenance(db, now);
+    // The daily sales email (R9.12) goes out from the same 5-minute cron once a trading day is over.
+    const dailyReports = await runDailyReports({ db, sender: emailSenderFromEnv(), now });
+    const result = { ...maintenance, ok: maintenance.ok && dailyReports.ok, errors: [...maintenance.errors, ...dailyReports.errors], dailyReports: dailyReports.reports };
     if (!result.ok) console.error("maintenance step failed", result.errors.join("; ")); // no customer data in these messages
     return Response.json(result, { status: result.ok ? 200 : 500, headers: noStore });
   } catch (e) {
