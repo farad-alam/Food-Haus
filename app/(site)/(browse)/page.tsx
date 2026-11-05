@@ -4,7 +4,7 @@ import { RestaurantJsonLd } from "@/components/json-ld";
 import { Suspense } from "react";
 import { AddToBasket } from "@/components/basket";
 import { OfferStrip } from "@/components/live-offers";
-import { OpenNowLine } from "@/components/shop-status";
+import { ReviewsBlock } from "@/components/reviews";
 import { getMenu } from "@/lib/menu";
 import { formatPence } from "@/lib/money";
 import { fullAddress, mapsLink, shop } from "@/lib/shop";
@@ -39,13 +39,12 @@ export default async function Home() {
               Call {shop.phoneDisplay}
             </a>
           </div>
-          <Suspense fallback={null}>
-            <OpenNowLine />
-          </Suspense>
           {/* Live offers (R9.8): only what the owner is running right now */}
-          <Suspense fallback={null}>
-            <OfferStrip />
-          </Suspense>
+          <div className="mt-6 h-9">
+            <Suspense fallback={null}>
+              <OfferStrip />
+            </Suspense>
+          </div>
         </div>
       </section>
 
@@ -69,20 +68,17 @@ export default async function Home() {
         </p>
       </section>
 
+      {/* Google rating and reviews (R7.1): renders nothing until configured; loads Google only after first paint */}
+      <section className="mx-auto max-w-5xl px-4 pb-8">
+        <ReviewsBlock />
+      </section>
+
       {/* How ordering works */}
       <section className="border-y border-line bg-surface">
         <div className="mx-auto grid max-w-5xl gap-4 px-4 py-8 sm:grid-cols-3">
           <div><h3 className="font-display text-2xl">1. Pick your food</h3><p className="text-muted">Browse the menu and add to your basket. No account needed.</p></div>
           <div><h3 className="font-display text-2xl">2. Delivery or collection</h3><p className="text-muted">Enter your postcode to see your delivery fee before you go on.</p></div>
           <div><h3 className="font-display text-2xl">3. Pay your way</h3><p className="text-muted">Card, bank or cash on delivery.</p></div>
-        </div>
-      </section>
-
-      {/* Google reviews: Places UI Kit element goes here (R7) — reserved space */}
-      <section className="mx-auto max-w-5xl px-4 py-8" aria-labelledby="reviews">
-        <h2 id="reviews" className="font-display text-3xl">What customers say</h2>
-        <div className="mt-4 min-h-[160px] rounded-2xl border border-dashed border-line p-4 text-sm text-muted">
-          Live Google rating and reviews load here (requirement R7, Places UI Kit). Space is reserved so the page never jumps.
         </div>
       </section>
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AddToBasket } from "@/components/basket";
 import { CategoryOffers } from "@/components/live-offers";
+import { ReviewsBadge } from "@/components/reviews";
 import { getMenu } from "@/lib/menu";
 import { ALLERGENS } from "@/lib/menu-constants";
 import { formatPence, formatPenceExact } from "@/lib/money";
@@ -23,6 +24,7 @@ export default async function MenuPage() {
       <div className="mx-auto max-w-5xl px-4 pt-6">
         <h1 className="font-display text-4xl sm:text-5xl">Order Halal Burgers Online in Luton</h1>
         <p className="mt-1 text-muted">Everything is halal. Prices include VAT.</p>
+        <div className="mt-3 max-w-xs"><ReviewsBadge /></div>
       </div>
 
       {/* Sticky category tabs — plain anchor links, no JavaScript needed */}

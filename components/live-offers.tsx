@@ -12,15 +12,18 @@ async function current() {
   return liveOffers(await getPublicOffers(), new Date());
 }
 
-/** Home page strip: one pill per live offer. */
+/**
+ * Home page strip: the first live offer (and a link if there are more), in ONE row
+ * of fixed height. The caller reserves that row, so this streaming in after the
+ * first paint pushes nothing down (R10.8). A long offer is truncated, never wrapped.
+ */
 export async function OfferStrip() {
   const offers = await current();
   if (offers.length === 0) return null;
   return (
-    <div className="mt-6 flex flex-wrap gap-2">
-      {offers.slice(0, 3).map((o) => (
-        <p key={o.id} className="inline-block rounded-xl bg-brand px-4 py-2 text-sm font-bold text-black">{describeShort(toFacts(o))}</p>
-      ))}
+    <div className="flex h-9 items-center gap-3 overflow-hidden">
+      <p className="min-w-0 truncate rounded-xl bg-brand px-4 py-2 text-sm font-bold text-black">{describeShort(toFacts(offers[0]))}</p>
+      {offers.length > 1 && <Link href="/offers" className="shrink-0 text-sm underline">+{offers.length - 1} more</Link>}
     </div>
   );
 }
