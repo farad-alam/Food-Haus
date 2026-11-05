@@ -1,7 +1,8 @@
 import { asc, eq, gte } from "drizzle-orm";
-import { auditLog, closure, deliveryZone, openingHours, settings } from "@/db/schema";
+import { closure, deliveryZone, openingHours, settings } from "@/db/schema";
 import type { Db } from "@/lib/db/client";
 import { isOpenAt, londonParts } from "@/lib/hours";
+import { auditInsert, type Actor } from "./audit";
 import { normaliseTime, sortWindows, validateWindows, type HoursWindow } from "./hours-validate";
 
 // Shop settings: opening hours, closures, pause switch, prep time, cash limits,
@@ -69,11 +70,9 @@ export async function loadSettingsView(db: Db, now: Date): Promise<SettingsView>
   };
 }
 
-type Actor = { userId: number; now: Date };
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; code: "INVALID" | "NOT_FOUND" | "DUPLICATE"; message: string };
 
-const audit = (db: Db, a: Actor, action: string, entity: string, before: unknown, after: unknown) =>
-  db.insert(auditLog).values({ userId: a.userId, action, entity, before: before ?? null, after: after ?? null, at: a.now });
+const audit = auditInsert;
 
 // ---- opening hours ---------------------------------------------------------
 

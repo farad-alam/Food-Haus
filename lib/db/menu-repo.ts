@@ -17,7 +17,7 @@ export async function loadMenuRows(db: Db): Promise<MenuRows> {
   const catName = new Map(cats.map((c) => [c.id, c.name]));
 
   return {
-    categories: cats.map((c) => ({ name: c.name, sortOrder: c.sortOrder, visible: c.visible })),
+    categories: cats.map((c) => ({ name: c.name, slug: c.slug, sortOrder: c.sortOrder, visible: c.visible })),
     items: items.map((i) => ({
       category: catName.get(i.categoryId) ?? "",
       name: i.name,

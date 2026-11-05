@@ -4,30 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { dayName, validateWindows, type HoursWindow } from "@/lib/admin/hours-validate";
 import { formatPenceExact, parsePounds, penceToInput } from "@/lib/money";
+import { api, failMessage, field, Msg, Section } from "./ui";
+
+const MON_FIRST = [1, 2, 3, 4, 5, 6, 0];
 import type { ClosureView, General, SettingsView, ZoneRow } from "@/lib/admin/settings";
 
 // Settings (R9.9, R9.10): pause switch, opening hours, closure days, prep time
 // and cash limits, delivery zones. The server re-validates everything; the
 // checks here only give instant feedback.
-
-const field = "min-h-[48px] rounded-lg border border-line bg-surface-2 px-3 py-2 text-base text-text";
-const MON_FIRST = [1, 2, 3, 4, 5, 6, 0];
-
-type Out = { ok: boolean; status: number; data: { ok?: boolean; message?: string; [k: string]: unknown } };
-async function api(method: string, url: string, body?: unknown): Promise<Out> {
-  try {
-    const res = await fetch(url, { method, headers: body === undefined ? undefined : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
-    const data = await res.json().catch(() => ({}));
-    return { ok: res.ok && data.ok !== false, status: res.status, data };
-  } catch {
-    return { ok: false, status: 0, data: { message: "No connection. That change was not saved." } };
-  }
-}
-const failMessage = (o: Out) => (o.status === 401 ? "You have been signed out. Sign in again." : (o.data.message as string) || "That did not work. Please try again.");
-
-function Msg({ text, good }: { text: string; good?: boolean }) {
-  return text ? <p role={good ? "status" : "alert"} className={`mt-2 text-sm ${good ? "text-green-400" : "text-red-400"}`}>{text}</p> : null;
-}
 
 export function SettingsPanel() {
   const [view, setView] = useState<SettingsView | null>(null);
@@ -79,16 +63,6 @@ function StatusBanner({ view }: { view: SettingsView }) {
       <p role="status" className={`rounded-lg border-2 p-3 font-bold ${s.open ? "border-green-500 text-green-400" : "border-yellow-400 text-yellow-400"}`}>{text}</p>
       {view.zones.filter((z) => z.active).length === 0 && <p className="rounded-lg border border-line p-3 text-sm text-muted">No active delivery zones: delivery is unavailable until you add one (collection still works).</p>}
     </div>
-  );
-}
-
-function Section({ id, title, hint, children }: { id: string; title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <section aria-labelledby={id}>
-      <h2 id={id} className="font-display text-3xl">{title}</h2>
-      {hint && <p className="mt-1 text-sm text-muted">{hint}</p>}
-      <div className="mt-3">{children}</div>
-    </section>
   );
 }
 

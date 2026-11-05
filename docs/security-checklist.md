@@ -101,3 +101,17 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Every change is written to `audit_log` with before/after in the same transaction as the change (R9.13)
 - [ ] The public site does not yet show opening hours (contact page, footer, structured data) or a "closed, reopens at..." notice on the menu (R6.8, R11.2); checkout already shows the closed/paused message
 - [ ] "Site-wide notice bar" and shop contact details (rest of R9.9) are not editable yet
+
+## Menu manager (`/admin/menu`)
+- [x] Owner and manager only (`menu.edit`): every route goes through one wrapper that authorises, origin-checks, validates the body (strict keys, size-capped) and maps the result; kitchen gets 403/404
+- [x] Create, rename, hide, reorder and delete categories; create, edit, hide, mark sold out, reorder, move and delete items; one option group per category ("Make it a Meal") with extras
+- [x] Prices typed in pounds, sent as whole pence (1p to £500); changing a price by more than 3x either way asks "Is that right?" before saving
+- [x] The 14 UK allergens as checkboxes with an explicit "Not supplied yet" state (stored as null, never guessed) versus "Confirmed" (a list, possibly empty); the manager shows how many visible items are still missing allergen data (launch blocker, R11.10) and can filter to them
+- [x] The public menu shows allergen NAMES, "Allergens: please ask" when not supplied, and "No major allergens declared" when confirmed as none
+- [x] Every change is audited with before and after in the same transaction, allergen edits included (R9.13)
+- [x] The public menu cache is refreshed after every write with no stale copy served (`revalidateTag("menu", { expire: 0 })`): verified in a browser that price, sold-out, hidden, new items and reordering show on the very next page view. Ordering never uses that cache; checkout and pricing read the database
+- [x] Item ids are built from the category's stable slug and the item's stable slug, so renaming a category or an item does not break customers' saved baskets. Moving an item to another category does change its id (a basket holding it will be told it is no longer on the menu)
+- [x] Category names must be unique (case-insensitive) because the public menu matches by name; a category with items or an offer cannot be deleted; hidden categories' options never reach the public menu
+- [ ] Photo upload with automatic resizing (R9.7) is not built: it needs file storage (Cloudflare R2) that is not set up. Items have no photos yet
+- [ ] Customers still cannot CHOOSE options: the menu cards, basket and checkout form have no option picker, although the server prices options correctly. "Make it a Meal" cannot be sold until the picker exists
+- [ ] Option groups attached to a single item (rather than a whole category) are not supported by the menu model or the manager

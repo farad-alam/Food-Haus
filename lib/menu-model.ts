@@ -57,7 +57,7 @@ const POPULAR = [
 
 /** Flat rows as stored in Postgres (or derived from the seed file). */
 export type MenuRows = {
-  categories: { name: string; sortOrder: number; visible: boolean }[];
+  categories: { name: string; slug?: string; sortOrder: number; visible: boolean }[];
   items: {
     category: string;
     name: string;
@@ -85,17 +85,17 @@ export function rowsToMenu(rows: MenuRows): Menu {
   const categories: MenuCategory[] = rows.categories
     .filter((c) => c.visible)
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((c) => ({
-      name: c.name,
-      slug: slugify(c.name),
-      sortOrder: c.sortOrder,
-      items: rows.items
+    .map((c) => {
+      // The stored slug is stable across renames, so item ids (kept in customers'
+      // baskets) do not change when an admin renames a category.
+      const catSlug = c.slug ?? slugify(c.name);
+      const items = rows.items
         .filter((i) => i.category === c.name && i.visible)
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .map((i) => {
           const slug = i.slug ?? slugify(i.name);
           return {
-            id: `${slugify(c.name)}-${slug}`,
+            id: `${catSlug}-${slug}`,
             slug,
             category: c.name,
             name: i.name,
@@ -106,11 +106,14 @@ export function rowsToMenu(rows: MenuRows): Menu {
             soldOut: i.soldOut,
             visible: i.visible,
           };
-        }),
-    }));
+        });
+      return { name: c.name, slug: catSlug, sortOrder: c.sortOrder, items };
+    });
 
   const optionGroups: Record<string, MenuOptionGroup> = {};
+  const visibleNames = new Set(categories.map((c) => c.name));
   for (const g of rows.optionGroups) {
+    if (!visibleNames.has(g.category)) continue; // a hidden or unknown category's options are not part of the menu
     const groupId = slugify(g.name);
     optionGroups[g.category] = {
       id: groupId,

@@ -18,7 +18,7 @@ async function Gate({ children }: { children: React.ReactNode }) {
   const user = await requireAdminPage("orders.view");
   return (
     <>
-      <AdminHeader email={user.email} role={user.role} canSettings={can(user.role, "settings.edit")} />
+      <AdminHeader email={user.email} role={user.role} canSettings={can(user.role, "settings.edit")} canMenu={can(user.role, "menu.edit")} />
       {children}
     </>
   );

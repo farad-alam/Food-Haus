@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AddToBasket } from "@/components/basket";
 import { getMenu } from "@/lib/menu";
+import { ALLERGENS } from "@/lib/menu-constants";
 import { formatPence, formatPenceExact } from "@/lib/money";
 import { shop } from "@/lib/shop";
 
@@ -63,8 +64,12 @@ export default async function MenuPage() {
                         Allergens: please ask before ordering — call {shop.phoneDisplay}.
                       </p>
                     ) : item.allergens.length > 0 ? (
-                      <p className="mt-2 text-xs text-muted">Contains: {item.allergens.join(", ")}</p>
-                    ) : null}
+                      <p className="mt-2 text-xs text-muted">
+                        Contains: {ALLERGENS.filter((a) => item.allergens!.includes(a.key)).map((a) => a.label).join(", ")}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-xs text-muted">No major allergens declared.</p>
+                    )}
                   </div>
                   <div className="flex justify-end">
                     <AddToBasket id={item.id} name={item.name} price={item.price} soldOut={item.soldOut} />
