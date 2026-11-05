@@ -8,6 +8,9 @@ export class MemoryStore implements AdminStore {
   events = new Map<string, Date[]>();
   resets = new Map<string, ResetTokenRecord>();
   touches = 0;
+  pending = new Map<number, { secret: string; createdAt: Date }>();
+  recovery = new Map<number, { hash: string; usedAt: Date | null }[]>();
+  setups = new Map<string, { userId: number; expiresAt: Date; usedAt: Date | null }>();
 
   addUser(u: AdminUserRecord) {
     this.users.set(u.id, u);
@@ -62,6 +65,60 @@ export class MemoryStore implements AdminStore {
   }
   async consumeResetToken(tokenHash: string, now: Date) {
     const t = this.resets.get(tokenHash);
+    if (!t || t.usedAt || now >= t.expiresAt) return false;
+    t.usedAt = now;
+    return true;
+  }
+
+  // ---- two-step login enrolment ----
+  async setPendingTotp(userId: number, secret: string, now: Date) {
+    this.pending.set(userId, { secret, createdAt: now });
+  }
+  async getPendingTotp(userId: number) {
+    const p = this.pending.get(userId);
+    return p ? { ...p } : null;
+  }
+  async activateTotp(a: { userId: number; secret: string; lastStep: number; recoveryHashes: string[]; keepSessionHash?: string }) {
+    const u = this.users.get(a.userId);
+    if (u) {
+      u.totpSecret = a.secret;
+      u.totpLastStep = a.lastStep;
+    }
+    this.pending.delete(a.userId);
+    this.recovery.set(a.userId, a.recoveryHashes.map((hash) => ({ hash, usedAt: null })));
+    for (const [k, sess] of this.sessions) if (sess.userId === a.userId && k !== a.keepSessionHash) this.sessions.delete(k);
+  }
+  async clearTotp(userId: number) {
+    const u = this.users.get(userId);
+    if (u) {
+      u.totpSecret = null;
+      u.totpLastStep = null;
+    }
+    this.pending.delete(userId);
+    this.recovery.delete(userId);
+    await this.deleteUserSessions(userId);
+  }
+  async consumeRecoveryCode(userId: number, codeHash: string, now: Date) {
+    const c = (this.recovery.get(userId) ?? []).find((x) => x.hash === codeHash && !x.usedAt);
+    if (!c) return false;
+    c.usedAt = now;
+    return true;
+  }
+  async countRecoveryCodes(userId: number) {
+    return (this.recovery.get(userId) ?? []).filter((x) => !x.usedAt).length;
+  }
+  async replaceRecoveryCodes(userId: number, hashes: string[]) {
+    this.recovery.set(userId, hashes.map((hash) => ({ hash, usedAt: null })));
+  }
+  async createSetupToken(t: { tokenHash: string; userId: number; expiresAt: Date }) {
+    this.setups.set(t.tokenHash, { userId: t.userId, expiresAt: t.expiresAt, usedAt: null });
+  }
+  async findSetupToken(tokenHash: string) {
+    const t = this.setups.get(tokenHash);
+    return t ? { ...t } : null;
+  }
+  async consumeSetupToken(tokenHash: string, now: Date) {
+    const t = this.setups.get(tokenHash);
     if (!t || t.usedAt || now >= t.expiresAt) return false;
     t.usedAt = now;
     return true;

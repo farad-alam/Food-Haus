@@ -1,5 +1,5 @@
 import { and, lt } from "drizzle-orm";
-import { adminSession, authEvent, passwordResetToken, stripeEvent } from "@/db/schema";
+import { adminSession, adminSetupToken, authEvent, passwordResetToken, stripeEvent, totpEnrolment } from "@/db/schema";
 import type { Db } from "@/lib/db/client";
 import { expireUnpaidOrders } from "@/lib/checkout-service";
 
@@ -20,6 +20,7 @@ export const RETENTION = {
   authEventsMs: 2 * DAY, // longest throttle window is 1 hour
   sessionsMs: 1 * DAY, // after expiry
   resetTokensMs: 1 * DAY, // after expiry
+  setupLinksMs: 1 * DAY, // 2FA setup links, after expiry; also abandoned half-finished enrolments (secret never confirmed)
   stripeEventsMs: 60 * DAY, // Stripe retries for 3 days; 60 keeps a long audit tail
 };
 
@@ -49,6 +50,11 @@ export async function runMaintenance(db: Db, now: Date): Promise<MaintenanceResu
   await step("prune auth events", async () => (await db.delete(authEvent).where(lt(authEvent.at, before(RETENTION.authEventsMs))).returning({ id: authEvent.id })).length, (n) => (r.prunedAuthEvents = n));
   await step("prune sessions", async () => (await db.delete(adminSession).where(lt(adminSession.expiresAt, before(RETENTION.sessionsMs))).returning({ h: adminSession.tokenHash })).length, (n) => (r.prunedSessions = n));
   await step("prune reset tokens", async () => (await db.delete(passwordResetToken).where(and(lt(passwordResetToken.expiresAt, before(RETENTION.resetTokensMs)))).returning({ h: passwordResetToken.tokenHash })).length, (n) => (r.prunedResetTokens = n));
+  await step("prune 2fa setup links", async () => {
+    const links = await db.delete(adminSetupToken).where(lt(adminSetupToken.expiresAt, before(RETENTION.setupLinksMs))).returning({ h: adminSetupToken.tokenHash });
+    const pending = await db.delete(totpEnrolment).where(lt(totpEnrolment.createdAt, before(RETENTION.setupLinksMs))).returning({ u: totpEnrolment.userId });
+    return links.length + pending.length;
+  }, (n) => (r.prunedResetTokens += n)); // counted with the other one-time links
   await step("prune stripe events", async () => (await db.delete(stripeEvent).where(lt(stripeEvent.processedAt, before(RETENTION.stripeEventsMs))).returning({ id: stripeEvent.id })).length, (n) => (r.prunedStripeEvents = n));
   return r;
 }

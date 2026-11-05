@@ -10,15 +10,15 @@ import { verifyTurnstile } from "@/lib/turnstile";
 const body = z.strictObject({
   email: z.string().trim().min(1).max(254),
   password: z.string().min(1).max(200),
-  totp: z.string().regex(/^\d{6}$/).optional(),
+  totp: z.string().trim().regex(/^(\d{6}|[A-Za-z0-9 -]{10,14})$/).optional(), // authenticator code, or a recovery code (XXXXX-XXXXX)
   turnstileToken: z.string().max(2048).optional(),
 });
 
 const MESSAGES = {
   invalid_credentials: "Email or password is incorrect.",
   locked: "Too many attempts. Please wait 15 minutes and try again.",
-  invalid_totp: "That code is wrong or has already been used. Wait for a new code and try again.",
-  totp_enrolment_required: "Two-step login is not set up for this account. Ask the owner to set it up.",
+  invalid_totp: "That code is wrong or has already been used. Wait for a new code and try again, or use a recovery code.",
+  totp_enrolment_required: "Two-step login is not set up for this account yet. Open the setup link the owner sent you, or ask them for a new one.",
 } as const;
 
 export async function POST(request: Request) {
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     const r = await login(adminStore(), { email: parsed.email, password: parsed.password, totp: parsed.totp, ip }, new Date());
     if (r.ok) {
       const secure = secureDeployment();
-      return jsonResponse(200, { ok: true, role: r.user.role }, { "Set-Cookie": sessionCookie(cookieName(secure), r.token, r.expiresAt, secure) });
+      return jsonResponse(200, { ok: true, role: r.user.role, ...(r.recoveryCodeUsed ? { recoveryCodeUsed: true, recoveryCodesLeft: r.recoveryCodesLeft } : {}) }, { "Set-Cookie": sessionCookie(cookieName(secure), r.token, r.expiresAt, secure) });
     }
     if (r.reason === "totp_required") return jsonResponse(401, { ok: false, code: "TOTP_REQUIRED" });
     const status = r.reason === "locked" ? 429 : r.reason === "totp_enrolment_required" ? 403 : 401;

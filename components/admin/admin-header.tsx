@@ -40,6 +40,7 @@ export function AdminHeader({ email, role, canSettings, canMenu, canOffers, canH
           {canMenu && link("/admin/menu", "Menu")}
           {canOffers && link("/admin/offers", "Offers")}
           {canSettings && link("/admin/settings", "Settings")}
+          {link("/admin/account", "Account")}
         </nav>
         <div className="flex shrink-0 items-center gap-3 text-sm">
           <span className="hidden text-muted xl:inline">{email} · {role}</span>

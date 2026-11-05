@@ -48,6 +48,7 @@ export function can(role: Role | null | undefined, permission: Permission): bool
 // listed here is denied for everyone except the owner, so a new page added
 // without a rule fails closed instead of open.
 const ROUTES: ReadonlyArray<readonly [string, Permission]> = [
+  ["/admin/account", "orders.view"], // every signed-in role manages its own sign-in security
   ["/admin/orders", "orders.view"],
   ["/admin/history", "orders.history"],
   ["/admin/export", "orders.export"],

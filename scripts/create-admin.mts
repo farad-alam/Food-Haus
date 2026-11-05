@@ -1,7 +1,9 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
+import * as schema from "../db/schema";
 import { createAdminUser } from "../lib/auth/pg-store";
-import { generateTotpSecret, otpauthUri } from "../lib/auth/totp";
+import { PgAdminStore } from "../lib/auth/pg-store";
+import { issueSetupToken } from "../lib/auth/enrolment";
 import { passwordHasher, validatePasswordPolicy } from "../lib/auth/password";
 
 // Creates an admin user. The password is read from ADMIN_PASSWORD (never from
@@ -16,13 +18,17 @@ if (!password || !key || !url) throw new Error("ADMIN_PASSWORD, SECRET_BOX_KEY a
 const problem = validatePasswordPolicy(password, { email });
 if (problem) throw new Error(problem);
 
-const needsTotp = role !== "kitchen";
-const totpSecret = needsTotp ? generateTotpSecret() : undefined;
-await createAdminUser(drizzle(neon(url)), key, {
+const db = drizzle(neon(url), { schema });
+// Owners and managers have no authenticator yet: they enrol themselves through a one-time
+// link (24 hours) plus their password, so no 2FA secret is ever printed or typed into a terminal.
+const userId = await createAdminUser(db, key, {
   email,
   passwordHash: await passwordHasher.hash(password),
   role: role as "owner" | "manager" | "kitchen",
-  totpSecret,
 });
 console.log(`Created ${role} ${email}.`);
-if (totpSecret) console.log(`Add to an authenticator app:\n${otpauthUri(totpSecret, email)}`);
+if (role !== "kitchen") {
+  const { token } = await issueSetupToken(new PgAdminStore(db, key), userId, new Date());
+  const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  console.log(`Send them this one-time link (valid 24 hours; they also need their password):\n${site}/admin/setup/${token}`);
+}

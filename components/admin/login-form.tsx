@@ -34,8 +34,7 @@ export function LoginForm() {
       const out = await res.json();
       if (out.ok) {
         // Deliberate hard navigation: picks up/drops the session cookie and discards any cached authenticated pages.
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        window.location.href = "/admin";
+        window.location.href = out.recoveryCodeUsed ? `/admin/account?recovery=${Number(out.recoveryCodesLeft) || 0}` : "/admin";
         return;
       }
       if (out.code === "TOTP_REQUIRED") setStep("totp");
@@ -67,8 +66,9 @@ export function LoginForm() {
         </>
       ) : (
         <div>
-          <label htmlFor="totp" className="font-bold">6-digit code from your authenticator app</label>
-          <input id="totp" name="totp" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" autoFocus className={`${field} tracking-widest`} value={totp} onChange={(e) => setTotp(e.target.value.replace(/\D/g, ""))} required />
+          <label htmlFor="totp" className="font-bold">Code from your authenticator app</label>
+          <p id="totp-hint" className="text-sm text-muted">The 6 digits, or one of your recovery codes if you lost your phone.</p>
+          <input id="totp" name="totp" inputMode="text" aria-describedby="totp-hint" autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={14} autoComplete="one-time-code" autoFocus className={`${field} tracking-widest`} value={totp} onChange={(e) => setTotp(e.target.value.replace(/[^A-Za-z0-9 -]/g, ""))} required />
         </div>
       )}
       {turnstileKey && <Turnstile siteKey={turnstileKey} onToken={onToken} resetKey={tsReset} />}

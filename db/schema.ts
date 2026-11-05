@@ -257,6 +257,38 @@ export const salesReport = pgTable("sales_report", {
   summary: jsonb("summary"), // the totals that were emailed (no customer data)
 });
 
+// Two-step login enrolment (R9.2). The pending secret lives server-side (encrypted)
+// between showing the QR code and the user proving their app works, so the browser
+// can never choose or alter the secret that gets activated.
+export const totpEnrolment = pgTable("totp_enrolment", {
+  userId: integer("user_id").primaryKey().references(() => adminUser.id, { onDelete: "cascade" }),
+  secretEnc: text("secret_enc").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// One-time link that allows FIRST-TIME 2FA setup (issued by the operator, never by the
+// login page). Only its SHA-256 is stored.
+export const adminSetupToken = pgTable("admin_setup_token", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: integer("user_id").notNull().references(() => adminUser.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Single-use recovery codes. Only a hash is stored; the plaintext is shown once.
+export const recoveryCode = pgTable(
+  "recovery_code",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => adminUser.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("recovery_code_user_hash_idx").on(t.userId, t.codeHash)],
+);
+
 // R9.13 (Must): the only record of who did what, given the shared kitchen login.
 export const auditLog = pgTable("audit_log", {
   id: serial("id").primaryKey(),

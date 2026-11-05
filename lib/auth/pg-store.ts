@@ -1,5 +1,5 @@
-import { and, count, eq, gt, gte, isNull, lt, or } from "drizzle-orm";
-import { adminSession, adminUser, authEvent, passwordResetToken } from "@/db/schema";
+import { and, count, eq, gt, gte, isNull, lt, ne, or } from "drizzle-orm";
+import { adminSession, adminSetupToken, adminUser, authEvent, passwordResetToken, recoveryCode, totpEnrolment } from "@/db/schema";
 import type { Db } from "@/lib/db/client";
 import { openSecret, sealSecret } from "./secret-box";
 import type { AdminStore, AdminUserRecord, ResetTokenRecord, SessionRecord } from "./service";
@@ -100,6 +100,72 @@ export class PgAdminStore implements AdminStore {
         and(eq(passwordResetToken.tokenHash, tokenHash), isNull(passwordResetToken.usedAt), gt(passwordResetToken.expiresAt, now)),
       )
       .returning({ h: passwordResetToken.tokenHash });
+    return rows.length === 1;
+  }
+
+  // ---- two-step login enrolment (R9.2) ----------------------------------------------------
+
+  async setPendingTotp(userId: number, secret: string, now: Date) {
+    const secretEnc = await sealSecret(secret, this.secretKey);
+    await this.db.insert(totpEnrolment).values({ userId, secretEnc, createdAt: now }).onConflictDoUpdate({ target: totpEnrolment.userId, set: { secretEnc, createdAt: now } });
+  }
+  async getPendingTotp(userId: number) {
+    const [r] = await this.db.select().from(totpEnrolment).where(eq(totpEnrolment.userId, userId)).limit(1);
+    if (!r) return null;
+    const secret = await openSecret(r.secretEnc, this.secretKey);
+    return secret === null ? null : { secret, createdAt: r.createdAt };
+  }
+  async activateTotp(a: { userId: number; secret: string; lastStep: number; recoveryHashes: string[]; keepSessionHash?: string }) {
+    const secretEnc = await sealSecret(a.secret, this.secretKey);
+    const sessions = a.keepSessionHash ? and(eq(adminSession.userId, a.userId), ne(adminSession.tokenHash, a.keepSessionHash)) : eq(adminSession.userId, a.userId);
+    await this.db.batch([
+      this.db.update(adminUser).set({ totpSecretEnc: secretEnc, totpLastStep: a.lastStep }).where(eq(adminUser.id, a.userId)),
+      this.db.delete(totpEnrolment).where(eq(totpEnrolment.userId, a.userId)),
+      this.db.delete(recoveryCode).where(eq(recoveryCode.userId, a.userId)),
+      this.db.insert(recoveryCode).values(a.recoveryHashes.map((codeHash) => ({ userId: a.userId, codeHash }))),
+      this.db.delete(adminSession).where(sessions),
+    ]);
+  }
+  async clearTotp(userId: number) {
+    await this.db.batch([
+      this.db.update(adminUser).set({ totpSecretEnc: null, totpLastStep: null }).where(eq(adminUser.id, userId)),
+      this.db.delete(totpEnrolment).where(eq(totpEnrolment.userId, userId)),
+      this.db.delete(recoveryCode).where(eq(recoveryCode.userId, userId)),
+      this.db.delete(adminSession).where(eq(adminSession.userId, userId)),
+    ]);
+  }
+  async consumeRecoveryCode(userId: number, codeHash: string, now: Date) {
+    // Single conditional UPDATE: two simultaneous logins cannot both spend the same code.
+    const rows = await this.db
+      .update(recoveryCode)
+      .set({ usedAt: now })
+      .where(and(eq(recoveryCode.userId, userId), eq(recoveryCode.codeHash, codeHash), isNull(recoveryCode.usedAt)))
+      .returning({ id: recoveryCode.id });
+    return rows.length === 1;
+  }
+  async countRecoveryCodes(userId: number) {
+    const [r] = await this.db.select({ n: count() }).from(recoveryCode).where(and(eq(recoveryCode.userId, userId), isNull(recoveryCode.usedAt)));
+    return r?.n ?? 0;
+  }
+  async replaceRecoveryCodes(userId: number, hashes: string[]) {
+    await this.db.batch([
+      this.db.delete(recoveryCode).where(eq(recoveryCode.userId, userId)),
+      this.db.insert(recoveryCode).values(hashes.map((codeHash) => ({ userId, codeHash }))),
+    ]);
+  }
+  async createSetupToken(t: { tokenHash: string; userId: number; expiresAt: Date }) {
+    await this.db.insert(adminSetupToken).values(t);
+  }
+  async findSetupToken(tokenHash: string) {
+    const [r] = await this.db.select().from(adminSetupToken).where(eq(adminSetupToken.tokenHash, tokenHash)).limit(1);
+    return r ? { userId: r.userId, expiresAt: r.expiresAt, usedAt: r.usedAt } : null;
+  }
+  async consumeSetupToken(tokenHash: string, now: Date) {
+    const rows = await this.db
+      .update(adminSetupToken)
+      .set({ usedAt: now })
+      .where(and(eq(adminSetupToken.tokenHash, tokenHash), isNull(adminSetupToken.usedAt), gt(adminSetupToken.expiresAt, now)))
+      .returning({ h: adminSetupToken.tokenHash });
     return rows.length === 1;
   }
 }
