@@ -52,6 +52,14 @@ const nextConfig: NextConfig = {
     }
     return [
       { source: "/:path*", headers },
+      // The admin panel and its API are never indexed or cached (R11.4).
+      {
+        source: "/(admin|api/admin)/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+          { key: "Cache-Control", value: "private, no-store" },
+        ],
+      },
       // Customer order pages and checkout are never indexed (R11.4, R13.15).
       {
         source: "/(order|checkout)/:path*",

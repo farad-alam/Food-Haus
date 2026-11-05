@@ -172,7 +172,17 @@ export type AuthResult =
   | { ok: true; user: { id: number; email: string; role: Role } }
   | { ok: false; reason: "no_session" | "expired" | "idle_timeout" | "disabled" };
 
-export async function authenticate(store: AdminStore, token: string | undefined, now: Date): Promise<AuthResult> {
+/**
+ * `touch: false` is for background polling (the order board): it must not
+ * count as user activity, or an open board would defeat the owner/manager
+ * idle timeout (R9.2). The idle check itself still applies.
+ */
+export async function authenticate(
+  store: AdminStore,
+  token: string | undefined,
+  now: Date,
+  options: { touch?: boolean } = {},
+): Promise<AuthResult> {
   if (!token) return { ok: false, reason: "no_session" };
   const tokenHash = await hashToken(token);
   const session = await store.getSession(tokenHash);
@@ -191,7 +201,9 @@ export async function authenticate(store: AdminStore, token: string | undefined,
     await store.deleteSession(tokenHash);
     return { ok: false, reason: "idle_timeout" };
   }
-  if (now.getTime() - session.lastSeenAt.getTime() > TOUCH_INTERVAL_MS) await store.touchSession(tokenHash, now);
+  if (options.touch !== false && now.getTime() - session.lastSeenAt.getTime() > TOUCH_INTERVAL_MS) {
+    await store.touchSession(tokenHash, now);
+  }
   return { ok: true, user: { id: user.id, email: user.email, role: user.role } };
 }
 

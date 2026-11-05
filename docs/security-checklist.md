@@ -26,11 +26,11 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 
 ## Still to wire up for auth
 - [x] Drizzle implementation of `AdminStore` (`lib/auth/pg-store.ts`), TOTP seeds AES-256-GCM encrypted at rest (`SECRET_BOX_KEY`); integration-tested against Postgres
-- [ ] Login/logout/reset pages and server actions; session cookie (`HttpOnly`, `Secure`, `SameSite=Lax`, `__Host-` prefix)
-- [ ] Enforce `canAccessPath` in a server layout and `can()` inside every server action
+- [x] Login (two-step for owner/manager), logout and password-reset pages + API routes (`/admin/login`, `/admin/forgot`, `/admin/reset/[token]`); session cookie `HttpOnly`, `Secure`, `SameSite=Lax`, `__Host-` prefix in production (verified in a real browser)
+- [x] Authorisation on the server: every admin API route calls `guard(request, permission)` (origin check, session, role), and every admin page calls `requireAdminPage(permission)` itself, not only in a layout. Unlisted admin pages 404. Polling never counts as activity, so an open board cannot defeat the owner/manager idle timeout
 - [ ] 2FA enrolment screen (QR from `otpauth://` URI) and one-time recovery codes
-- [ ] Send reset emails; confirm the page always shows the same message
-- [ ] Cloudflare Turnstile on login and reset (R13.13)
+- [x] Reset emails sent after the response; the request endpoint returns an identical body for known and unknown emails (needs the email provider configured, see below)
+- [x] Turnstile on login and reset requests when `TURNSTILE_SECRET_KEY` is set (login form renders the widget when the site key is set; untested against real Turnstile, same as checkout)
 - [ ] Confirm PBKDF2 cost inside the Workers runtime. Measured ~290 ms per hash/verify in Node 22 (staff-only logins, so acceptable); re-measure in `wrangler dev` against the Worker CPU limit
 
 ## Known gaps to close
@@ -77,3 +77,15 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Turnstile widget loads only when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set (CSP allows `challenges.cloudflare.com`). Set the site key and `TURNSTILE_SECRET_KEY` together, and test it against real Turnstile: it is untested here
 - [ ] "Make it a Meal" (item options) cannot yet be chosen on the menu or in the basket; the API supports options
 - [ ] Prune old `auth_event` rows (login and promo counters) on a Cron Trigger
+
+## Admin login and order board (`/admin`)
+- [x] Order board feed `GET /api/admin/orders` and actions `POST /api/admin/orders/[id]` (accept with prep time, reject with a customer-visible reason, ready, out for delivery, completed) are authorised, origin-checked and schema-validated on every call
+- [x] Status changes are conditional updates, so two tablets cannot both win a tap; a lost race gets a clear 409 and the board refreshes
+- [x] `pending_payment` (unpaid card) orders never appear on the board or accept actions (R8.7)
+- [x] Rejecting returns the order's promo use in the same transaction; rejecting a paid card order tells staff to refund it in the Stripe Dashboard (refunds are manual for the first release, R8.10)
+- [x] Every order action is written to `audit_log` with the user id (R9.13); with the shared kitchen login this is the only record of who did what
+- [x] Board polls every 3 s, rings every 4 s while any order awaits acceptance, flashes the card, shows a red "No connection, orders may be missed" bar after 15 s without a successful poll (and a sign-in bar if the session ends), keeps the screen awake after "Start taking orders" (R9.3, R9.6, R13.10)
+- [ ] 2FA enrolment screen and recovery codes: today the seed is created with `npm run admin:create` (prints the `otpauth://` URI). Until a screen exists, only the person running that script sees the seed
+- [ ] The login throttle keys on `CF-Connecting-IP`; without Cloudflare in front, all requests share one "unknown" bucket (20 failures would lock everyone out). Deploy behind Cloudflare only
+- [ ] Unauthenticated page loads of `/admin` return HTTP 200 with a redirect instruction (streaming limitation) rather than a 307. No data is in that response and the API returns 401; a `proxy.ts` redirect could be added if Workers supports it
+- [ ] An owner or manager signed out by the 30-minute idle timeout while watching the board will get the sign-in bar and stop hearing orders. The kitchen login has no idle timeout, so run the always-on tablet on the kitchen login

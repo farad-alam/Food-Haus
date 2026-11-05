@@ -93,3 +93,13 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Order board (R9.3): a new order flashes until someone accepts or rejects it. */
+@keyframes fh-flash {
+  0%, 100% { box-shadow: 0 0 0 3px var(--brand); background-color: var(--surface); }
+  50% { box-shadow: 0 0 0 6px var(--brand); background-color: color-mix(in srgb, var(--brand) 22%, var(--surface)); }
+}
+.flash-card { animation: fh-flash 1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .flash-card { animation: none; box-shadow: 0 0 0 4px var(--brand); }
+}

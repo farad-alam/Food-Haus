@@ -169,6 +169,16 @@ describe("sessions", () => {
     expect(await authenticate(store, generateToken(), T0)).toEqual({ ok: false, reason: "no_session" });
   });
 
+  it("background polling (touch: false) never counts as activity, so an open board cannot defeat the idle timeout", async () => {
+    const token = await signIn("manager@foodhaus.test", PASSWORDS.manager, true);
+    store.touches = 0;
+    // 29 minutes of polling every minute: no touches, session still valid...
+    for (let m = 1; m <= 29; m++) expect((await authenticate(store, token, later(m * MIN), { touch: false })).ok).toBe(true);
+    expect(store.touches).toBe(0);
+    // ...so at 31 minutes since the last REAL activity the idle timeout applies even though polling continued.
+    expect(await authenticate(store, token, later(31 * MIN), { touch: false })).toEqual({ ok: false, reason: "idle_timeout" });
+  });
+
   it("manager is logged out after 30 minutes idle (R9.2) but activity keeps them in", async () => {
     const token = await signIn("manager@foodhaus.test", PASSWORDS.manager, true);
     expect((await authenticate(store, token, later(OWNER_MANAGER_IDLE_MS - MIN))).ok).toBe(true); // 29 min: refreshes lastSeen
