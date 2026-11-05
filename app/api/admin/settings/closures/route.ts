@@ -3,6 +3,7 @@ import { guard, jsonResponse } from "@/lib/admin/guard";
 import { readJson, statusFor } from "@/lib/admin/http";
 import { addClosure } from "@/lib/admin/settings";
 import { getDb } from "@/lib/db/client";
+import { refreshSettingsCache } from "@/lib/menu-cache";
 
 // POST /api/admin/settings/closures: mark a whole day closed (bank holiday etc.).
 const realDate = (s: string) => {
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
   if ("response" in b) return b.response;
   try {
     const r = await addClosure(getDb(), { userId: g.user.id, now: new Date() }, b.data);
+    if (r.ok) refreshSettingsCache();
     return r.ok ? jsonResponse(201, r) : jsonResponse(statusFor(r.code), r);
   } catch (e) {
     console.error("add closure failed", e instanceof Error ? e.message : e);

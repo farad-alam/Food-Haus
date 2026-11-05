@@ -74,9 +74,24 @@ describe.skipIf(!enabled)("quoteOrder (real database)", () => {
     expect(!unk.body.ok && unk.body.errors[0].code).toBe("UNKNOWN_ITEM");
   });
 
+  it("says WHEN ordering reopens, in the same words as the website banner, and labels the button", async () => {
+    await setup;
+    const monToSun = Array.from({ length: 7 }, (_, weekday) => ({ weekday, opensAt: "12:00", closesAt: "23:00" }));
+    const morning = new Date("2026-11-04T09:00:00Z"); // 09:00 UK, before opening
+    const r = await quoteOrder(deps({ now: morning, loadContext: async () => ({ ...ctx, hours: monToSun }) }), q());
+    expect(r.body).toMatchObject({ open: false, closedMessage: "We are closed right now. Ordering opens today at 12pm.", closedLabel: "Ordering opens today at 12pm" });
+    const night = new Date("2026-11-04T23:30:00Z");
+    expect((await quoteOrder(deps({ now: night, loadContext: async () => ({ ...ctx, hours: monToSun }) }), q())).body).toMatchObject({ closedLabel: "Ordering opens tomorrow at 12pm" });
+    const open = await quoteOrder(deps({ now: new Date("2026-11-04T15:00:00Z"), loadContext: async () => ({ ...ctx, hours: monToSun }) }), q());
+    expect(open.body.open).toBe(true);
+    expect((open.body as { closedLabel?: string }).closedLabel).toBeUndefined();
+    const paused = await quoteOrder(deps({ now: morning, loadContext: async () => ({ ...ctx, hours: monToSun, settings: { ...ctx.settings, paused: true, pausedMessage: "Back at 8pm" } }) }), q());
+    expect(paused.body).toMatchObject({ closedMessage: "Back at 8pm", closedLabel: "Orders are paused" });
+  });
+
   it("flags closed and paused shops so the form can disable ordering", async () => {
     await setup;
-    expect((await quoteOrder(deps({ loadContext: async () => ({ ...ctx, hours: [] }) }), q())).body).toMatchObject({ open: false, closedMessage: expect.stringContaining("closed") });
+    expect((await quoteOrder(deps({ loadContext: async () => ({ ...ctx, hours: [] }) }), q())).body).toMatchObject({ open: false, closedMessage: "We are not taking orders right now." });
     const paused = await quoteOrder(deps({ loadContext: async () => ({ ...ctx, settings: { ...ctx.settings, paused: true, pausedMessage: "Back at 6" } }) }), q());
     expect(paused.body).toMatchObject({ open: false, closedMessage: "Back at 6" });
   });

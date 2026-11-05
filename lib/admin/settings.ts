@@ -1,7 +1,8 @@
 import { asc, eq, gte } from "drizzle-orm";
 import { closure, deliveryZone, openingHours, settings } from "@/db/schema";
 import type { Db } from "@/lib/db/client";
-import { isOpenAt, londonParts } from "@/lib/hours";
+import { londonParts } from "@/lib/hours";
+import { shopState } from "@/lib/shop-status";
 import { auditInsert, type Actor } from "./audit";
 import { normaliseTime, sortWindows, validateWindows, type HoursWindow } from "./hours-validate";
 
@@ -46,10 +47,10 @@ export async function loadGeneral(db: Db): Promise<General> {
 }
 
 export function shopStatus(general: General, hours: HoursWindow[], closures: { day: string }[], now: Date): ShopStatus {
-  if (general.paused) return { open: false, reason: "paused" };
-  if (hours.length === 0) return { open: false, reason: "no_hours" };
-  if (isOpenAt(hours, closures, now)) return { open: true, reason: "open" };
-  return { open: false, reason: closures.some((c) => c.day === londonParts(now).date) ? "closure" : "outside_hours" };
+  // One implementation of "is the shop open and why" (lib/shop-status.ts), so the admin screen
+  // can never disagree with the public site or the order API.
+  const state = shopState({ paused: general.paused, pausedMessage: general.pausedMessage, hours, closures }, now);
+  return { open: state.open, reason: state.reason };
 }
 
 export async function loadSettingsView(db: Db, now: Date): Promise<SettingsView> {

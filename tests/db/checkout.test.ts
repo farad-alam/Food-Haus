@@ -230,9 +230,10 @@ describe.skipIf(!enabled)("createOrder (real database)", () => {
     expect(win.discount).toBeGreaterThan(0);
     expect(win.offerId).toBe(o.id);
 
-    // Abandoned card order: sweeper cancels it and frees the promo use.
-    const later = new Date(Date.now() + 60 * 60_000);
-    expect(await expireUnpaidOrders(db, later)).toBeGreaterThanOrEqual(1);
+    // Abandoned card order: the sweeper cancels it and frees the promo use. Age ONLY this order
+    // (rather than moving the clock forward, which would also cancel other files' fresh orders).
+    await db.update(order).set({ createdAt: new Date(Date.now() - 2 * 3_600_000) }).where(eq(order.id, win.id));
+    expect(await expireUnpaidOrders(db, new Date())).toBeGreaterThanOrEqual(1);
     expect((await rowFor(winnerKey)).status).toBe("cancelled");
     expect((await db.select().from(offer).where(eq(offer.id, o.id)))[0].usedCount).toBe(0);
   });

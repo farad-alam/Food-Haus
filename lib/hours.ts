@@ -3,7 +3,7 @@
 // Intl rather than by hand.
 
 export type HoursRow = { weekday: number; opensAt: string; closesAt: string }; // 0 = Sunday, "HH:MM[:SS]"
-export type ClosureRow = { day: string }; // "YYYY-MM-DD" (London date)
+export type ClosureRow = { day: string; reason?: string | null }; // "YYYY-MM-DD" (London date)
 
 const fmt = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",

@@ -61,7 +61,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Stripe webhook `POST /api/stripe/webhook` (R8.3-R8.5): signature checked on the raw body (5-minute tolerance) before parsing; paid only from `checkout.session.completed` (when `payment_status` is `paid`) or `async_payment_succeeded`; event ids stored in the same transaction as the change; session id, amount and currency must match the stored order; failure/expiry cancel and release the promo use; a payment for an already-cancelled order is recorded and logged (`PAID ORDER NOT PENDING`) for manual refund
 - [ ] In Stripe, add the endpoint `https://<site>/api/stripe/webhook` with those four events plus `checkout.session.expired`, set `STRIPE_WEBHOOK_SECRET`, and test Pay by Bank in test mode (Stripe's docs do not say which event it fires)
 - [ ] Alert on the `PAID ORDER NOT PENDING` / `amount mismatch` log lines
-- [ ] Schedule `expireUnpaidOrders` on a Cloudflare Cron Trigger (R8.7)
+- [x] `expireUnpaidOrders` runs every 5 minutes on a Cloudflare Cron Trigger (see "Scheduled maintenance" below) (R8.7)
 - [ ] Cloudflare WAF rate-limit rule on `/api/checkout` (R6.14); app-level limits only cover cash orders
 - [x] Order page `/order/[token]` (R5.5, R6.12): 128-bit token only (malformed tokens never reach the database), `noindex`, `no-store`, refreshes every 15 s while the order is active; shows no phone, email, address or note
 - [x] Order emails (R6.11, R11.10, R13.10): customer confirmation with allergen reminder and private link; shop alert with items and payment but no customer contact details; all customer text HTML-escaped; each email claimed atomically so it sends at most once; failures never affect the order
@@ -76,7 +76,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Ordering is disabled with a message while the shop is closed or paused
 - [x] Turnstile widget loads only when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set (CSP allows `challenges.cloudflare.com`). Set the site key and `TURNSTILE_SECRET_KEY` together, and test it against real Turnstile: it is untested here
 - [ ] "Make it a Meal" (item options) cannot yet be chosen on the menu or in the basket; the API supports options
-- [ ] Prune old `auth_event` rows (login and promo counters) on a Cron Trigger
+- [x] Old `auth_event` rows (login and promo counters) are pruned by the scheduled maintenance job
 
 ## Admin login and order board (`/admin`)
 - [x] Order board feed `GET /api/admin/orders` and actions `POST /api/admin/orders/[id]` (accept with prep time, reject with a customer-visible reason, ready, out for delivery, completed) are authorised, origin-checked and schema-validated on every call
@@ -99,7 +99,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Delivery zones by postcode district: validated district, fee and minimum order in whole pence, time 5-180 min; duplicates refused; inactive zones refuse delivery
 - [x] Default prep time and cash limits (largest cash order, per-phone and per-IP daily caps) editable
 - [x] Every change is written to `audit_log` with before/after in the same transaction as the change (R9.13)
-- [ ] The public site does not yet show opening hours (contact page, footer, structured data) or a "closed, reopens at..." notice on the menu (R6.8, R11.2); checkout already shows the closed/paused message
+- [x] The public site now shows a "closed, reopens at..." notice and the opening hours on the contact page (see "Closed notice" below). Still open: opening hours in the footer and in the JSON-LD structured data (R11.2)
 - [ ] "Site-wide notice bar" and shop contact details (rest of R9.9) are not editable yet
 
 ## Menu manager (`/admin/menu`)
@@ -138,3 +138,21 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [ ] A promo code marked "show on website" is printed publicly; the form warns the owner. Codes meant for specific people should leave that box unticked
 - [ ] Offers do not stack: a customer gets one offer per order (the typed code, or the best automatic one). The form says so. Combining offers would be a pricing-engine change
 - [ ] Offers are not limited per customer (one use per phone number or email); only a total usage limit exists
+
+## Scheduled maintenance (Cloudflare Cron Trigger)
+- [x] Every 5 minutes: unpaid card orders older than 45 minutes are cancelled and their promo use released (so abandoned checkouts never linger or hold a limited offer); old throttling counters (2 days), sessions (1 day after expiry), dead reset links (1 day after expiry) and Stripe event ids (60 days) are deleted. Each step runs on its own and failures are reported
+- [x] Live orders are never touched: cash orders, paid orders, and card orders still inside the 45-minute window (a Stripe session itself expires at about 31 minutes). Running the job twice changes nothing and never releases a promo twice
+- [x] `POST /api/cron/maintenance` is protected by `CRON_SECRET` (Bearer, constant-time compare). With no secret (or one under 16 characters) it refuses everything with 503, so it can never be left open; wrong or missing credentials get 401 and do no work; GET is 405. The response contains counts only
+- [x] `cloudflare/worker.ts` wraps the OpenNext worker and adds the `scheduled` handler, which calls that route through the same worker; a non-2xx response or a missing secret makes the cron run FAIL visibly in Cloudflare's logs. `wrangler.jsonc` has `"main": "cloudflare/worker.ts"` and `"crons": ["*/5 * * * *"]`
+- [ ] **Deployment steps (not testable here, needs your Cloudflare account):** run `openssl rand -base64 32 | wrangler secret put CRON_SECRET` (for production AND preview), deploy, then in the Cloudflare dashboard open Workers > food-haus > Triggers and confirm the cron appears and its first runs succeed. The custom worker entry was verified against a fake worker and the route against the real database, but not on Cloudflare's own runtime: do one preview deploy and look at the cron logs before relying on it
+- [ ] The daily sales report (R9.12) will add a second cron
+- [ ] Personal data retention (R13.12: anonymising old orders' contact details) is not scheduled yet
+
+## Closed notice and public opening hours (R6.8, R5.1, R5.6)
+- [x] One pure module (`lib/shop-status.ts`) decides open / paused / closed and when ordering reopens; the website banner, the checkout button, and the quote and checkout API messages all use it, so they cannot disagree
+- [x] When ordering is not possible a banner under the header on every public page says why and when it reopens ("We are closed right now. Ordering opens today at 12pm", "tomorrow at...", "Friday at...", "Monday 16 Nov at..."; closure days with their reason; the owner's own message when paused), and says the menu can still be browsed and the basket filled. It is hidden on checkout (which says the same on the form and on its button: "Ordering opens today at 12pm" / "Orders are paused") and on order-tracking pages
+- [x] Without opening hours the site says "We are not taking orders right now" and never invents a reopening time; it looks at most two weeks ahead
+- [x] The home page shows "Open now, taking orders until 11pm" while open
+- [x] The contact page shows the weekly opening hours from the admin settings (nothing is published until the owner has entered them)
+- [x] Whether the shop is open right now is computed at request time from the clock; only the raw schedule is cached (expired at once by every admin save of hours, closed days or the pause switch). A page therefore cannot say "open" after closing time, and pausing shows on the very next page view (browser-verified)
+- [ ] Opening hours are not yet in the footer or in the JSON-LD structured data (R11.2, R5.1 "hours, address and map" block)

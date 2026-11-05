@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "food-haus",
-  "main": ".open-next/worker.js",
+  "main": "cloudflare/worker.ts", // wraps .open-next/worker.js and adds the cron handler
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
@@ -31,7 +31,9 @@
       "vars": { "APP_ENV": "production" }
     }
   }
-  // TODO (days 1-2, requirements section 12):
-  //  - "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<id>" }] for Postgres
-  //  - "triggers": { "crons": [...] } for daily report + expiring unpaid orders
+  // Cron Triggers (UTC). Every 5 minutes: cancel unpaid card orders older than 45 min and prune
+  // old counters, sessions and tokens (lib/maintenance.ts). Needs the CRON_SECRET secret:
+  //   openssl rand -base64 32 | wrangler secret put CRON_SECRET
+  "triggers": { "crons": ["*/5 * * * *"] }
+  // TODO: the daily sales report adds a second cron (requirements R9.12).
 }

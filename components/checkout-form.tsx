@@ -17,8 +17,8 @@ import { shop } from "@/lib/shop";
 type Err = { code: string; message: string; itemId?: string };
 type Zone = { district: string; fee: number; minOrder: number; estimatedMinutes: number };
 type QuoteOut =
-  | { ok: true; open: boolean; closedMessage?: string; lines: { itemId: string; lineTotal: number }[]; subtotal: number; deliveryFee: number; discount: number; total: number; appliedOffer: { name: string } | null; estimatedMinutes: number | null; zone: Zone | null }
-  | { ok: false; open: boolean; closedMessage?: string; errors: Err[]; zone: Zone | null };
+  | { ok: true; open: boolean; closedMessage?: string; closedLabel?: string; lines: { itemId: string; lineTotal: number }[]; subtotal: number; deliveryFee: number; discount: number; total: number; appliedOffer: { name: string } | null; estimatedMinutes: number | null; zone: Zone | null }
+  | { ok: false; open: boolean; closedMessage?: string; closedLabel?: string; errors: Err[]; zone: Zone | null };
 
 const input = "w-full min-h-[48px] rounded-lg border border-line bg-surface-2 px-3 py-2 text-base text-text";
 const noop = () => () => {};
@@ -306,7 +306,7 @@ export function CheckoutForm() {
       {banner && <p role="alert" className="rounded-lg border border-red-400 p-3 text-red-400">{banner}</p>}
 
       <button type="submit" className="btn btn-primary w-full" disabled={!canSubmit}>
-        {submitting ? "Placing your order…" : ok ? (payment === "card" ? `Pay ${formatPenceExact(ok.total)}` : `Place order · ${formatPenceExact(ok.total)}`) : "Place order"}
+        {submitting ? "Placing your order…" : closed ? (current?.closedLabel ?? "Closed") : ok ? (payment === "card" ? `Pay ${formatPenceExact(ok.total)}` : `Place order · ${formatPenceExact(ok.total)}`) : "Place order"}
       </button>
       <p className="text-center text-sm text-muted">
         By ordering you agree to our <Link href="/terms" className="underline">terms</Link> and <Link href="/privacy" className="underline">privacy policy</Link>.

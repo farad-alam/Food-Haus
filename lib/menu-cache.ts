@@ -27,3 +27,12 @@ export function refreshOffersCache(): void {
     if (!process.env.VITEST) console.error("offers cache refresh failed", e instanceof Error ? e.message : e);
   }
 }
+
+/** After opening hours, closed days or the pause switch change: public pages show the new state on their next view. */
+export function refreshSettingsCache(): void {
+  try {
+    revalidateTag("settings", { expire: 0 });
+  } catch (e) {
+    if (!process.env.VITEST) console.error("settings cache refresh failed", e instanceof Error ? e.message : e);
+  }
+}

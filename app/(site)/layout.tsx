@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { BasketProvider, StickyBasketBar } from "@/components/basket";
+import { HideOnPaths } from "@/components/hide-on-paths";
+import { ShopStatusBanner } from "@/components/shop-status";
 import { fullAddress, mapsLink, shop } from "@/lib/shop";
 
 // Public site chrome: header, basket, footer. The admin panel (app/admin) lives
@@ -24,6 +26,14 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
               </Link>
             </div>
           </header>
+
+          {/* R6.8: when ordering is closed or paused, say so and when it reopens */}
+          <Suspense fallback={null}>
+            {/* checkout shows the same sentence itself (and on its button); order tracking does not need it */}
+            <HideOnPaths prefixes={["/checkout", "/order"]}>
+              <ShopStatusBanner />
+            </HideOnPaths>
+          </Suspense>
 
           {/* bottom padding reserves space for the sticky basket bar (R10.8) */}
           <div className="flex-1 pb-24">{children}</div>

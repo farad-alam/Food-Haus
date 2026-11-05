@@ -4,6 +4,7 @@ import { RestaurantJsonLd } from "@/components/json-ld";
 import { Suspense } from "react";
 import { AddToBasket } from "@/components/basket";
 import { OfferStrip } from "@/components/live-offers";
+import { OpenNowLine } from "@/components/shop-status";
 import { getMenu } from "@/lib/menu";
 import { formatPence } from "@/lib/money";
 import { fullAddress, mapsLink, shop } from "@/lib/shop";
@@ -38,6 +39,9 @@ export default async function Home() {
               Call {shop.phoneDisplay}
             </a>
           </div>
+          <Suspense fallback={null}>
+            <OpenNowLine />
+          </Suspense>
           {/* Live offers (R9.8): only what the owner is running right now */}
           <Suspense fallback={null}>
             <OfferStrip />

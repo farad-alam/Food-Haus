@@ -164,7 +164,7 @@ describe.skipIf(!enabled)("admin settings (real database)", () => {
 
     it("closed with no hours; open after saving hours; collection order is accepted", async () => {
       await putHours(req("PUT", "/api/admin/settings/hours", "manager", { windows: [] }));
-      expect((await quote()).body).toMatchObject({ open: false, closedMessage: expect.stringContaining("closed") });
+      expect((await quote()).body).toMatchObject({ open: false, closedMessage: "We are not taking orders right now." });
       expect(await checkout()).toMatchObject({ status: 409, body: { code: "SHOP_CLOSED" } });
 
       await putHours(req("PUT", "/api/admin/settings/hours", "manager", { windows: allDay.map((w) => ({ ...w, closesAt: "23:59" })) }));

@@ -4,6 +4,7 @@ import { readJson, statusFor } from "@/lib/admin/http";
 import { TIME_RE } from "@/lib/admin/hours-validate";
 import { loadSettingsView, saveHours } from "@/lib/admin/settings";
 import { getDb } from "@/lib/db/client";
+import { refreshSettingsCache } from "@/lib/menu-cache";
 
 // PUT /api/admin/settings/hours: replaces the whole weekly schedule atomically.
 const body = z.strictObject({
@@ -21,6 +22,7 @@ export async function PUT(request: Request) {
     const now = new Date();
     const r = await saveHours(getDb(), { userId: g.user.id, now }, b.data.windows);
     if (!r.ok) return jsonResponse(statusFor(r.code), r);
+    refreshSettingsCache();
     return jsonResponse(200, { ok: true, status: (await loadSettingsView(getDb(), now)).status });
   } catch (e) {
     console.error("save hours failed", e instanceof Error ? e.message : e);

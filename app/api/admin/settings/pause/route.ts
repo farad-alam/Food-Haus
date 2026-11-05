@@ -3,6 +3,7 @@ import { guard, jsonResponse } from "@/lib/admin/guard";
 import { readJson } from "@/lib/admin/http";
 import { loadSettingsView, setPause } from "@/lib/admin/settings";
 import { getDb } from "@/lib/db/client";
+import { refreshSettingsCache } from "@/lib/menu-cache";
 
 // PUT /api/admin/settings/pause: the "Pause orders" switch with its message (R9.9).
 // Takes effect on the very next checkout: the order API reads it from the database every time.
@@ -16,6 +17,7 @@ export async function PUT(request: Request) {
   try {
     const now = new Date();
     await setPause(getDb(), { userId: g.user.id, now }, b.data);
+    refreshSettingsCache();
     return jsonResponse(200, { ok: true, status: (await loadSettingsView(getDb(), now)).status });
   } catch (e) {
     console.error("pause failed", e instanceof Error ? e.message : e);

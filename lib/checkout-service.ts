@@ -2,7 +2,8 @@ import { and, eq, gte, lt, ne, sql } from "drizzle-orm";
 import { closure, offer, openingHours, order, orderItem } from "@/db/schema";
 import type { Db } from "@/lib/db/client";
 import { loadMenuRows, loadOffers, loadSettings, loadZones } from "@/lib/db/menu-repo";
-import { isOpenAt, type ClosureRow, type HoursRow } from "@/lib/hours";
+import type { ClosureRow, HoursRow } from "@/lib/hours";
+import { closedMessage, shopState } from "@/lib/shop-status";
 import { rowsToMenu, type Menu } from "@/lib/menu-model";
 import { parsePostcode, priceOrder, type OfferRule, type PricingError, type Zone } from "@/lib/pricing";
 import type { CheckoutInput } from "@/lib/checkout-schema";
@@ -140,11 +141,10 @@ export async function createOrder(deps: CheckoutDeps, input: CheckoutInput): Pro
 
   const ctx = await (deps.loadContext ?? loadCheckoutContext)(db);
 
-  if (ctx.settings.paused) {
-    return fail(409, "SHOP_PAUSED", ctx.settings.pausedMessage || "We are not taking orders right now.");
-  }
-  if (!isOpenAt(ctx.hours, ctx.closures, now)) {
-    return fail(409, "SHOP_CLOSED", "We are closed right now. You can browse the menu and order when we reopen.");
+  const state = shopState({ paused: ctx.settings.paused, pausedMessage: ctx.settings.pausedMessage, hours: ctx.hours, closures: ctx.closures }, now);
+  if (!state.open) {
+    // R6.8: the same sentences the website banner shows, including when ordering reopens.
+    return fail(409, state.reason === "paused" ? "SHOP_PAUSED" : "SHOP_CLOSED", closedMessage(state, now)!);
   }
 
   const hash = deps.clientIp && deps.ipHashKey ? await ipHash(deps.clientIp, deps.ipHashKey) : null;
