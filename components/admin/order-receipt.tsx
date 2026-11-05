@@ -64,9 +64,15 @@ export function OrderReceipt({ o }: { o: OrderDetail }) {
 
         <section className="mt-5" aria-labelledby="cust-h">
           <h2 id="cust-h" className="font-bold">Customer</h2>
-          <p>{o.customerName}</p>
-          <p><a href={`tel:${tel}`} className="underline">{o.phone}</a> · {o.email}</p>
-          {o.type === "delivery" && <p>{o.address}, {o.postcode}</p>}
+          {o.anonymisedAt ? (
+            <p className="text-muted print:text-black">Contact details were removed on {stamp(o.anonymisedAt)} (orders older than 12 months). The order and its totals are kept.</p>
+          ) : (
+            <>
+              <p>{o.customerName}</p>
+              <p><a href={`tel:${tel}`} className="underline">{o.phone}</a> · {o.email}</p>
+              {o.type === "delivery" && <p>{o.address}, {o.postcode}</p>}
+            </>
+          )}
           {o.note && <p className="mt-1">Note: {o.note}</p>}
         </section>
       </article>

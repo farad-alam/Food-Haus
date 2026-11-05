@@ -2,6 +2,7 @@ import { and, lt } from "drizzle-orm";
 import { adminSession, adminSetupToken, authEvent, passwordResetToken, stripeEvent, totpEnrolment } from "@/db/schema";
 import type { Db } from "@/lib/db/client";
 import { expireUnpaidOrders } from "@/lib/checkout-service";
+import { anonymiseOldOrders } from "@/lib/retention";
 
 // Scheduled housekeeping, run every few minutes by a Cloudflare Cron Trigger
 // (cloudflare/worker.ts -> POST /api/cron/maintenance).
@@ -11,6 +12,8 @@ import { expireUnpaidOrders } from "@/lib/checkout-service";
 //  - Old throttling counters, expired sessions, used or expired reset links and
 //    old Stripe event ids are deleted so those tables stay small and so
 //    nothing sensitive is kept longer than it is useful.
+//  - Customers' contact details on orders older than 12 months are wiped (R13.12,
+//    lib/retention.ts); the orders and their totals stay.
 //
 // Each step runs on its own: one failing never stops the others, and any failure
 // is reported so the cron run shows as failed in Cloudflare's logs.
@@ -31,11 +34,12 @@ export type MaintenanceResult = {
   prunedSessions: number;
   prunedResetTokens: number;
   prunedStripeEvents: number;
+  anonymisedOrders: number;
   errors: string[];
 };
 
 export async function runMaintenance(db: Db, now: Date): Promise<MaintenanceResult> {
-  const r: MaintenanceResult = { ok: true, expiredOrders: 0, prunedAuthEvents: 0, prunedSessions: 0, prunedResetTokens: 0, prunedStripeEvents: 0, errors: [] };
+  const r: MaintenanceResult = { ok: true, expiredOrders: 0, prunedAuthEvents: 0, prunedSessions: 0, prunedResetTokens: 0, prunedStripeEvents: 0, anonymisedOrders: 0, errors: [] };
   const before = (ms: number) => new Date(now.getTime() - ms);
   const step = async (name: string, fn: () => Promise<number>, set: (n: number) => void) => {
     try {
@@ -56,5 +60,6 @@ export async function runMaintenance(db: Db, now: Date): Promise<MaintenanceResu
     return links.length + pending.length;
   }, (n) => (r.prunedResetTokens += n)); // counted with the other one-time links
   await step("prune stripe events", async () => (await db.delete(stripeEvent).where(lt(stripeEvent.processedAt, before(RETENTION.stripeEventsMs))).returning({ id: stripeEvent.id })).length, (n) => (r.prunedStripeEvents = n));
+  await step("anonymise old orders", () => anonymiseOldOrders(db, now), (n) => (r.anonymisedOrders = n));
   return r;
 }

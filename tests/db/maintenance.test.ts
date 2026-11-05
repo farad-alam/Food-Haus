@@ -71,6 +71,19 @@ describe.skipIf(!enabled)("maintenance (real database)", () => {
     expect((await get(stale.id)).status).toBe("cancelled");
   });
 
+  it("anonymises contact details on orders older than 12 months, and only those", async () => {
+    const mk = async (age: number) => {
+      const [o] = await db.insert(order).values({ token: newOrderToken(), idempotencyKey: crypto.randomUUID(), type: "collection", paymentMethod: "cash", status: "completed", subtotal: 900, total: 900, customerName: `Maint ${tag}`, phone: "+447700900124", email: `m-${tag}@example.test`, note: "n", createdAt: ago(age * DAY) }).returning();
+      made.orders.push(o.id);
+      return o;
+    };
+    const old = await mk(420), recent = await mk(30);
+    const r = await runMaintenance(db, new Date());
+    expect(typeof r.anonymisedOrders).toBe("number");
+    expect(await get(old.id)).toMatchObject({ customerName: "Anonymised", phone: "", email: "", note: null });
+    expect(await get(recent.id)).toMatchObject({ customerName: `Maint ${tag}`, phone: "+447700900124", anonymisedAt: null });
+  });
+
   it("prunes only OLD counters, expired sessions, dead reset links and old Stripe events", async () => {
     await db.insert(authEvent).values([{ key: `maint-old-${tag}`, at: ago(RETENTION.authEventsMs + DAY) }, { key: `maint-new-${tag}`, at: ago(10 * MIN) }]);
     await db.insert(adminSession).values([
@@ -135,7 +148,7 @@ describe.skipIf(!enabled)("maintenance (real database)", () => {
       expect(res.headers.get("cache-control")).toBe("no-store");
       const body = await res.json();
       expect(body).toMatchObject({ ok: true, errors: [] });
-      expect(Object.keys(body).sort()).toEqual(["dailyReports", "errors", "expiredOrders", "ok", "prunedAuthEvents", "prunedResetTokens", "prunedSessions", "prunedStripeEvents"]);
+      expect(Object.keys(body).sort()).toEqual(["anonymisedOrders", "dailyReports", "errors", "expiredOrders", "ok", "prunedAuthEvents", "prunedResetTokens", "prunedSessions", "prunedStripeEvents"]);
       expect(Array.isArray(body.dailyReports)).toBe(true);
       expect((await get(stale.id)).status).toBe("cancelled");
     });

@@ -146,7 +146,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] `cloudflare/worker.ts` wraps the OpenNext worker and adds the `scheduled` handler, which calls that route through the same worker; a non-2xx response or a missing secret makes the cron run FAIL visibly in Cloudflare's logs. `wrangler.jsonc` has `"main": "cloudflare/worker.ts"` and `"crons": ["*/5 * * * *"]`
 - [ ] **Deployment steps (not testable here, needs your Cloudflare account):** run `openssl rand -base64 32 | wrangler secret put CRON_SECRET` (for production AND preview), deploy, then in the Cloudflare dashboard open Workers > food-haus > Triggers and confirm the cron appears and its first runs succeed. The custom worker entry was verified against a fake worker and the route against the real database, but not on Cloudflare's own runtime: do one preview deploy and look at the cron logs before relying on it
 - [x] The daily sales report (R9.12) is sent by the same 5-minute cron (see "Daily sales email" below); no second cron is needed
-- [ ] Personal data retention (R13.12: anonymising old orders' contact details) is not scheduled yet
+- [x] Personal data retention (R13.12): the five-minute job wipes name, phone, email, address, postcode, note and hashed IP on orders older than 12 months (up to 500 per run); items, totals, status and dates stay, so reports and history totals are unchanged. The period is `CONTACT_RETENTION_MONTHS` in `lib/retention.ts` (the requirements doc suggested 24; change it there). Verified against the real database and in the admin receipt
 
 ## Closed notice and public opening hours (R6.8, R5.1, R5.6)
 - [x] One pure module (`lib/shop-status.ts`) decides open / paused / closed and when ordering reopens; the website banner, the checkout button, and the quote and checkout API messages all use it, so they cannot disagree
@@ -181,7 +181,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Admin navigation now has six links; on a phone the row scrolls sideways with a fade at the right edge and keeps the current page in view, and Sign out stays on screen at 360px
 - [ ] History does not yet offer refunds or editing an order (refunds are done in the Stripe Dashboard, R8.10); it is read-only apart from export
 - [ ] The CSV is one row per order with items summarised in one cell; a per-item (one row per line) export is not offered
-- [ ] Contact details in old orders are kept indefinitely until the retention job (R13.12) exists; history will show anonymised orders as they are
+- [ ] Staff-typed free text is not wiped: a rejection reason (and audit-trail text) could contain a customer's name if someone types it. Tell staff not to put names in reasons. Database backups/branches taken before a clean-up still hold the old details until they expire
 
 ## Google reviews and rating (R7)
 - [x] **Source: Places UI Kit (requirements option 2).** Google's own element draws the rating, review count, reviews and Google's required attribution in the visitor's browser. **We store and copy nothing** (R7.3): no review text, names, photos or ratings exist in our database or code

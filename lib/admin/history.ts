@@ -87,6 +87,7 @@ export type OrderDetail = HistoryRow & {
   email: string;
   address: string | null;
   note: string | null;
+  anonymisedAt: string | null; // R13.12: set once the contact details were wiped
   prepMinutes: number | null;
   rejectionReason: string | null;
   scheduledFor: string | null;
@@ -127,6 +128,7 @@ export async function loadOrderDetail(db: Db, number: number): Promise<OrderDeta
     email: o.email,
     address: o.address,
     note: o.note,
+    anonymisedAt: o.anonymisedAt?.toISOString() ?? null,
     prepMinutes: o.prepMinutes,
     rejectionReason: o.rejectionReason,
     scheduledFor: o.scheduledFor?.toISOString() ?? null,
