@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { eq, inArray, like } from "drizzle-orm";
+import { asc, eq, inArray, like } from "drizzle-orm";
 import { adminUser, auditLog, category, item, option, optionGroup } from "@/db/schema";
 import { getDb } from "@/lib/db/client";
 import { createAdminUser } from "@/lib/auth/pg-store";
@@ -70,7 +70,7 @@ describe.skipIf(!enabled)("admin menu manager (real database)", () => {
   const ctx = (id: number | string) => ({ params: Promise.resolve({ id: String(id) }) });
   const view = async () => j(await getMenu(req("GET", "/api/admin/menu", "manager")));
   const publicMenu = async () => rowsToMenu(await loadMenuRows(db));
-  const audits = (action: string) => db.select().from(auditLog).where(eq(auditLog.action, action));
+  const audits = (action: string) => db.select().from(auditLog).where(eq(auditLog.action, action)).orderBy(asc(auditLog.id)); // explicit order: Postgres promises none otherwise
 
   const newCat = async (name: string, visible = true) => {
     const r = await postCategory(req("POST", "/api/admin/menu/categories", "manager", { name, visible }));

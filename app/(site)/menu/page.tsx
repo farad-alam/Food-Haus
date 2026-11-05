@@ -72,7 +72,7 @@ export default async function MenuPage() {
                     )}
                   </div>
                   <div className="flex justify-end">
-                    <AddToBasket id={item.id} name={item.name} price={item.price} soldOut={item.soldOut} />
+                    <AddToBasket id={item.id} name={item.name} price={item.price} soldOut={item.soldOut} optionGroup={menu.optionGroups[item.category] ?? null} />
                   </div>
                 </li>
               ))}

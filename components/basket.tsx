@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
 import { formatPenceExact } from "@/lib/money";
+import { AddWithOptions } from "@/components/option-picker";
+import type { PickerGroup } from "@/lib/option-select";
 import {
   addLine,
   EMPTY,
@@ -14,6 +16,7 @@ import {
   subscribe,
   write,
   type BasketLine,
+  type NewLine,
 } from "@/lib/basket-store";
 
 // R6.4: basket survives reload and a closed tab (localStorage), with a 200
@@ -27,8 +30,8 @@ type BasketState = {
   note: string;
   count: number;
   total: number;
-  add: (line: Omit<BasketLine, "qty">) => void;
-  setQty: (id: string, qty: number) => void;
+  add: (line: NewLine) => void;
+  setQty: (key: string, qty: number) => void;
   setNote: (note: string) => void;
   clear: () => void;
 };
@@ -46,8 +49,8 @@ export function BasketProvider({ children }: { children: React.ReactNode }) {
   // the stored one — no hydration mismatch, no setState-in-effect.
   const stored = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  const add = useCallback((line: Omit<BasketLine, "qty">) => write(addLine(getSnapshot(), line)), []);
-  const setQty = useCallback((id: string, qty: number) => write(setLineQty(getSnapshot(), id, qty)), []);
+  const add = useCallback((line: NewLine) => write(addLine(getSnapshot(), line)), []);
+  const setQty = useCallback((key: string, qty: number) => write(setLineQty(getSnapshot(), key, qty)), []);
   const setNote = useCallback((n: string) => write({ ...getSnapshot(), note: n.slice(0, MAX_NOTE) }), []);
   const clear = useCallback(() => write(EMPTY), []);
 
@@ -73,11 +76,14 @@ export function AddToBasket({
   name,
   price,
   soldOut,
+  optionGroup,
 }: {
   id: string;
   name: string;
   price: number;
   soldOut: boolean;
+  /** The category's option group (e.g. "Make it a Meal"); when present, Add opens the picker. */
+  optionGroup?: PickerGroup | null;
 }) {
   const { add } = useBasket();
   if (soldOut) {
@@ -87,6 +93,7 @@ export function AddToBasket({
       </span>
     );
   }
+  if (optionGroup && optionGroup.options.length > 0) return <AddWithOptions id={id} name={name} price={price} group={optionGroup} />;
   return (
     <button type="button" className="btn btn-primary" onClick={() => add({ id, name, price })} aria-label={`Add ${name} to basket`}>
       Add

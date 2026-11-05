@@ -45,7 +45,7 @@ export function CheckoutForm() {
   const [tsReset, setTsReset] = useState(0);
   const attempt = useRef<{ fp: string; key: string } | null>(null);
 
-  const items = lines.map((l) => ({ itemId: l.id, quantity: l.qty }));
+  const items = lines.map((l) => ({ itemId: l.id, quantity: l.qty, optionIds: l.optionIds }));
   const pc = orderType === "delivery" ? parsePostcode(postcode) : null;
   const canQuote = items.length > 0 && (orderType === "collection" || pc !== null);
   // The exact JSON sent to /api/quote, doubling as the cache key for its answer.
@@ -82,7 +82,8 @@ export function CheckoutForm() {
   const zone = current?.zone ?? null;
   const errors = current && !current.ok ? current.errors.filter((e) => !e.code.startsWith("PROMO_")) : [];
   const closed = current && !current.open ? (current.closedMessage ?? "We are closed right now.") : null;
-  const lineTotal = (id: string, qty: number, price: number) => ok?.lines.find((l) => l.itemId === id)?.lineTotal ?? qty * price;
+  // The quote returns one priced line per basket line, in the same order.
+  const lineTotal = (index: number, qty: number, price: number) => ok?.lines[index]?.lineTotal ?? qty * price;
 
   const needsToken = !!turnstileKey && !token;
   const canSubmit = hydrated && ok !== null && !closed && !submitting && !needsToken;
@@ -115,7 +116,7 @@ export function CheckoutForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           idempotencyKey: attempt.current.key,
-          items: items.map((i) => ({ ...i, optionIds: [] })),
+          items,
           orderType,
           paymentMethod: payment,
           ...details,
@@ -172,21 +173,25 @@ export function CheckoutForm() {
       <section aria-labelledby="basket-h">
         <h2 id="basket-h" className="font-display text-2xl">Your basket</h2>
         <ul className="mt-2 divide-y divide-line border-y border-line">
-          {lines.map((l) => (
-            <li key={l.id} className="flex items-center justify-between gap-3 py-3">
+          {lines.map((l, i) => {
+            const label = l.optionNames.length ? `${l.name} (${l.optionNames.join(", ")})` : l.name;
+            return (
+            <li key={l.key} className="flex items-center justify-between gap-3 py-3">
               <div className="min-w-0">
                 <p className="truncate font-bold">{l.name}</p>
-                <p className="text-sm text-muted">{formatPenceExact(lineTotal(l.id, l.qty, l.price))}</p>
+                {l.optionNames.length > 0 && <p className="text-sm">{l.optionNames.join(", ")}</p>}
+                <p className="text-sm text-muted">{formatPenceExact(lineTotal(i, l.qty, l.price))}</p>
               </div>
-              <div className="flex shrink-0 items-center gap-1" role="group" aria-label={`Quantity of ${l.name}`}>
-                <button type="button" className="btn btn-ghost !min-h-[44px] !min-w-[44px] !px-0" onClick={() => setQty(l.id, l.qty - 1)} aria-label={l.qty === 1 ? `Remove ${l.name}` : `One fewer ${l.name}`}>
+              <div className="flex shrink-0 items-center gap-1" role="group" aria-label={`Quantity of ${label}`}>
+                <button type="button" className="btn btn-ghost !min-h-[44px] !min-w-[44px] !px-0" onClick={() => setQty(l.key, l.qty - 1)} aria-label={l.qty === 1 ? `Remove ${label}` : `One fewer ${label}`}>
                   {l.qty === 1 ? "✕" : "−"}
                 </button>
                 <span className="w-8 text-center" aria-live="polite">{l.qty}</span>
-                <button type="button" className="btn btn-ghost !min-h-[44px] !min-w-[44px] !px-0" onClick={() => setQty(l.id, l.qty + 1)} aria-label={`One more ${l.name}`}>+</button>
+                <button type="button" className="btn btn-ghost !min-h-[44px] !min-w-[44px] !px-0" onClick={() => setQty(l.key, l.qty + 1)} aria-label={`One more ${label}`}>+</button>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       </section>
 

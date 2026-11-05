@@ -113,5 +113,14 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Item ids are built from the category's stable slug and the item's stable slug, so renaming a category or an item does not break customers' saved baskets. Moving an item to another category does change its id (a basket holding it will be told it is no longer on the menu)
 - [x] Category names must be unique (case-insensitive) because the public menu matches by name; a category with items or an offer cannot be deleted; hidden categories' options never reach the public menu
 - [ ] Photo upload with automatic resizing (R9.7) is not built: it needs file storage (Cloudflare R2) that is not set up. Items have no photos yet
-- [ ] Customers still cannot CHOOSE options: the menu cards, basket and checkout form have no option picker, although the server prices options correctly. "Make it a Meal" cannot be sold until the picker exists
+- [x] Customers can now CHOOSE options (see "Option picker" below)
 - [ ] Option groups attached to a single item (rather than a whole category) are not supported by the menu model or the manager
+
+## Option picker (menu, basket, checkout)
+- [x] Items in a category with an option group open a bottom-sheet picker (native `<dialog>`: focus trapped, Escape and outside-click close). Single choice = radio buttons (with "No thanks" when optional), multiple choice = checkboxes that stop at the maximum; Add stays disabled until the required minimum is met; price previews update live
+- [x] The picker's rules live in one pure module and a test checks them against the real pricing engine for every possible selection of seven group configurations: the browser never offers what the server refuses, never blocks what it accepts, and the previewed price equals the charged price
+- [x] Basket lines carry their chosen options: the same item with and without options are separate lines, identical choices merge, quantities change per line; saved baskets from before options existed still load
+- [x] Checkout, the quote API and the order all use the options: the server prices them again from the database and stores each option's name and price on the order line (verified in a browser: £41.45 order with a meal and pizza toppings reached the database with correct options and totals); the order page, emails and kitchen board already showed options
+- [x] A stale option (the owner renamed or removed it after the customer added it) shows "Unknown option for ..." and cannot be ordered at a wrong price; the line can be removed
+- [ ] The seeded "Make it a Meal" option is named "Meal (fries + drink — contents TBC with owner)": placeholder text from the print-menu extraction that customers would now SEE. The owner must confirm the contents and rename it in the Menu manager before launch. (Renaming an option changes its id, so anyone with the old option in their basket is asked to re-add it)
+- [ ] Test note: Next.js reuses its cached copy of the menu across builds for up to an hour, so after changing menu data directly in the database, delete `.next` before building (a normal deployment builds fresh)

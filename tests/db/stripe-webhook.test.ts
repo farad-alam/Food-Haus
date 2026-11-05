@@ -150,7 +150,11 @@ describe.skipIf(!enabled)("Stripe webhook (real database)", () => {
       process.env.STRIPE_WEBHOOK_SECRET = secret;
       try {
         expect((await post(body, null)).status).toBe(400);
-        expect((await post(body, (await sign(body)).replace(/.$/, "0"))).status).toBe(400);
+        const genuine = await sign(body);
+        // change the last hex digit to a DIFFERENT one (a fixed "0" equals the real signature 1 time in 16)
+        const forged = genuine.slice(0, -1) + (genuine.endsWith("0") ? "1" : "0");
+        expect(forged).not.toBe(genuine);
+        expect((await post(body, forged)).status).toBe(400);
         expect((await post(body + " ", await sign(body))).status).toBe(400); // body altered after signing
         expect((await post(body, await sign(body, Math.floor(Date.now() / 1000) - 3600))).status).toBe(400);
         expect((await get(o.id)).paymentStatus).toBe("unpaid"); // nothing applied yet

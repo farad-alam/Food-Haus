@@ -54,7 +54,7 @@ export default async function Home() {
                 <p className="line-clamp-2 text-sm text-muted">{item.description}</p>
                 <p className="mt-1 font-bold text-brand">{formatPence(item.price)}</p>
               </div>
-              <AddToBasket id={item.id} name={item.name} price={item.price} soldOut={item.soldOut} />
+              <AddToBasket id={item.id} name={item.name} price={item.price} soldOut={item.soldOut} optionGroup={menu.optionGroups[item.category] ?? null} />
             </li>
           ))}
         </ul>
