@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { requireAdminPage } from "@/lib/admin/page-auth";
+import { can } from "@/lib/auth/rbac";
 
 // Everything under (panel) needs a signed-in user. Each PAGE also calls
 // requireAdminPage with its own permission: a layout alone is not a control,
@@ -17,7 +18,7 @@ async function Gate({ children }: { children: React.ReactNode }) {
   const user = await requireAdminPage("orders.view");
   return (
     <>
-      <AdminHeader email={user.email} role={user.role} />
+      <AdminHeader email={user.email} role={user.role} canSettings={can(user.role, "settings.edit")} />
       {children}
     </>
   );

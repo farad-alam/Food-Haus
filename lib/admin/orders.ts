@@ -32,7 +32,7 @@ export type BoardOrder = {
  * `pending_payment` is never included: unpaid card orders must not reach the
  * kitchen (R8.7). Contains customer contact details, so only call behind guard().
  */
-export async function loadBoard(db: Db, now: Date): Promise<{ active: BoardOrder[]; recent: BoardOrder[]; defaultPrepMinutes: number }> {
+export async function loadBoard(db: Db, now: Date): Promise<{ active: BoardOrder[]; recent: BoardOrder[]; defaultPrepMinutes: number; paused: boolean; pausedMessage: string | null }> {
   const since = new Date(now.getTime() - RECENT_CLOSED_HOURS * 3_600_000);
   const rows = await db
     .select()
@@ -43,7 +43,7 @@ export async function loadBoard(db: Db, now: Date): Promise<{ active: BoardOrder
     .orderBy(asc(order.createdAt));
   const ids = rows.map((r) => r.id);
   const lines = ids.length ? await db.select().from(orderItem).where(inArray(orderItem.orderId, ids)).orderBy(asc(orderItem.id)) : [];
-  const [s] = await db.select({ d: settings.defaultPrepMinutes }).from(settings).where(eq(settings.id, 1)).limit(1);
+  const [s] = await db.select({ d: settings.defaultPrepMinutes, p: settings.paused, m: settings.pausedMessage }).from(settings).where(eq(settings.id, 1)).limit(1);
 
   const toBoard = (r: (typeof rows)[number]): BoardOrder => ({
     id: r.id,
@@ -68,6 +68,8 @@ export async function loadBoard(db: Db, now: Date): Promise<{ active: BoardOrder
     active: all.filter((o) => (ACTIVE as readonly string[]).includes(o.status)),
     recent: all.filter((o) => !(ACTIVE as readonly string[]).includes(o.status)).reverse(),
     defaultPrepMinutes: s?.d ?? 20,
+    paused: s?.p ?? false,
+    pausedMessage: s?.m ?? null,
   };
 }
 

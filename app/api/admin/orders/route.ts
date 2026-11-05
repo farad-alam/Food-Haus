@@ -1,4 +1,5 @@
 import { guard, jsonResponse } from "@/lib/admin/guard";
+import { can } from "@/lib/auth/rbac";
 import { loadBoard } from "@/lib/admin/orders";
 import { getDb } from "@/lib/db/client";
 
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
   if ("response" in g) return g.response;
   try {
     const now = new Date();
-    return jsonResponse(200, { ok: true, serverTime: now.toISOString(), ...(await loadBoard(getDb(), now)) });
+    return jsonResponse(200, { ok: true, serverTime: now.toISOString(), ...(await loadBoard(getDb(), now)), canPause: can(g.user.role, "settings.edit") });
   } catch (e) {
     console.error("board load failed", e instanceof Error ? e.message : e);
     return jsonResponse(500, { ok: false, code: "SERVER_ERROR" });

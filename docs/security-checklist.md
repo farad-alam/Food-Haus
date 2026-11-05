@@ -89,3 +89,15 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [ ] The login throttle keys on `CF-Connecting-IP`; without Cloudflare in front, all requests share one "unknown" bucket (20 failures would lock everyone out). Deploy behind Cloudflare only
 - [ ] Unauthenticated page loads of `/admin` return HTTP 200 with a redirect instruction (streaming limitation) rather than a 307. No data is in that response and the API returns 401; a `proxy.ts` redirect could be added if Workers supports it
 - [ ] An owner or manager signed out by the 30-minute idle timeout while watching the board will get the sign-in bar and stop hearing orders. The kitchen login has no idle timeout, so run the always-on tablet on the kitchen login
+
+## Shop settings: hours, closures, pause, zones (`/admin/settings`)
+- [x] Owner and manager only (`settings.edit`): every route calls `guard()`, kitchen gets 403/404, cross-site writes are refused; all input is schema-validated (strict keys, size-capped)
+- [x] Opening hours: up to 3 periods a day, overnight periods allowed, overlaps (including across midnight and the Saturday-to-Sunday week wrap) rejected; the same rules run in the browser and on the server, and match how checkout reads the hours
+- [x] No opening hours = closed (nothing is assumed); the page says so and warns when no delivery zone is active
+- [x] Closed days override the weekly hours; duplicates and impossible dates refused
+- [x] Pause switch with a customer message: applies to the very next checkout (read from the database on every request); owner/manager can pause or resume from the order board or the settings page, kitchen sees the paused banner but cannot change it (spec: kitchen is orders-only)
+- [x] Delivery zones by postcode district: validated district, fee and minimum order in whole pence, time 5-180 min; duplicates refused; inactive zones refuse delivery
+- [x] Default prep time and cash limits (largest cash order, per-phone and per-IP daily caps) editable
+- [x] Every change is written to `audit_log` with before/after in the same transaction as the change (R9.13)
+- [ ] The public site does not yet show opening hours (contact page, footer, structured data) or a "closed, reopens at..." notice on the menu (R6.8, R11.2); checkout already shows the closed/paused message
+- [ ] "Site-wide notice bar" and shop contact details (rest of R9.9) are not editable yet

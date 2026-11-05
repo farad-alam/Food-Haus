@@ -9,7 +9,7 @@ import type { BoardOrder } from "@/lib/admin/orders";
 // flashes until it is accepted or rejected. If the server cannot be reached for
 // 15 s a red bar says so, because a silent board means missed orders.
 
-type Feed = { active: BoardOrder[]; recent: BoardOrder[]; defaultPrepMinutes: number };
+type Feed = { active: BoardOrder[]; recent: BoardOrder[]; defaultPrepMinutes: number; paused: boolean; pausedMessage: string | null; canPause: boolean };
 const POLL_MS = 3000;
 const LOST_AFTER_MS = 15_000;
 const PREP_PRESETS = [10, 15, 20, 25, 30, 40, 50, 60];
@@ -53,7 +53,7 @@ export function OrderBoard() {
       if (res.status === 401) return setSignedOut(true);
       if (!res.ok) return;
       const data = await res.json();
-      setFeed({ active: data.active, recent: data.recent, defaultPrepMinutes: data.defaultPrepMinutes });
+      setFeed({ active: data.active, recent: data.recent, defaultPrepMinutes: data.defaultPrepMinutes, paused: data.paused, pausedMessage: data.pausedMessage, canPause: data.canPause });
       setLastOk(Date.now());
       setSignedOut(false);
     } catch {
@@ -172,6 +172,10 @@ export function OrderBoard() {
           <button type="button" className="btn btn-primary !min-h-[56px] text-lg" onClick={startTaking}>Start taking orders</button>
         )}
       </div>
+      {feed !== null && feed.canPause && <PauseControl paused={feed.paused} message={feed.pausedMessage} onChanged={refresh} />}
+      {feed !== null && !feed.canPause && feed.paused && (
+        <p role="status" className="mb-4 rounded-lg border-2 border-yellow-400 p-3 font-bold text-yellow-400">Orders are paused. Customers cannot order. Ask the manager to resume.</p>
+      )}
       {!soundOn && newCount > 0 && <p role="alert" className="mb-3 rounded-lg border border-brand p-3 font-bold">Sound is off. Tap “Start taking orders” to hear new orders.</p>}
       {message && <p role="alert" className="mb-3 rounded-lg border border-brand bg-surface p-3 font-bold">{message}</p>}
 
@@ -204,6 +208,54 @@ export function OrderBoard() {
           </ul>
         </details>
       )}
+    </div>
+  );
+}
+
+function PauseControl({ paused, message, onChanged }: { paused: boolean; message: string | null; onChanged: () => void }) {
+  const [asking, setAsking] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function put(body: { paused: boolean; message?: string }) {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/settings/pause", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const out = await res.json();
+      if (!out.ok) setError(out.message ?? "That did not work. Please try again.");
+      else {
+        setAsking(false);
+        setText("");
+        onChanged();
+      }
+    } catch {
+      setError("No connection. That change was not saved.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="mb-4">
+      {paused ? (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-yellow-400 p-3">
+          <p className="font-bold text-yellow-400">ORDERS ARE PAUSED{message ? `: “${message}”` : ""}. Customers cannot order.</p>
+          <button type="button" className="btn btn-primary !min-h-[56px]" disabled={busy} onClick={() => put({ paused: false })}>Resume orders</button>
+        </div>
+      ) : asking ? (
+        <div className="space-y-2 rounded-lg border border-line p-3">
+          <label htmlFor="pause-msg" className="font-bold">Message for customers (optional)</label>
+          <input id="pause-msg" className="min-h-[52px] w-full rounded-lg border border-line bg-surface-2 px-3 text-base text-text" value={text} maxLength={200} placeholder="We are very busy, back at 8pm" onChange={(e) => setText(e.target.value)} />
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" className="btn btn-ghost !min-h-[56px]" onClick={() => setAsking(false)}>Cancel</button>
+            <button type="button" className="btn btn-primary !min-h-[56px]" disabled={busy} onClick={() => put({ paused: true, message: text })}>Pause orders</button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="btn btn-ghost !min-h-[48px]" onClick={() => setAsking(true)}>Pause orders…</button>
+      )}
+      {error && <p role="alert" className="mt-2 text-red-400">{error}</p>}
     </div>
   );
 }
