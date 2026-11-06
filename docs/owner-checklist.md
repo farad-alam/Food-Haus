@@ -9,13 +9,13 @@ Compiled 6 November 2026 from the code, the requirements (`docs/requirements.md`
 ## A. Decisions and information only the owner can provide
 
 ### A1. Business details (R11.11, privacy and terms pages)
-- [ ] Exact **legal name** of the business ("Food Haus Ltd" is currently a guess in `lib/shop.ts`)
+- [ ] Exact **legal name** of the business (nothing is shown in the footer until you enter it; no name is guessed)
 - [ ] **Companies House number**
 - [ ] **Registered office address**
 - [ ] **VAT number**, or confirmation the business is not VAT registered (Q2). The menu already says "Prices include VAT"; this must be true
 - [ ] **ICO registration number**, if the business is registered with the Information Commissioner's Office (an adviser can say whether it must be)
-- [ ] Put the first three into `company` in `lib/shop.ts`: they then appear in the footer. `LEGAL_APPROVED` cannot be switched on while the number and registered office are empty (a test enforces this)
-- [ ] Confirm the **shop address, phone number, email and TikTok link** in `lib/shop.ts` are exactly right. They appear in the footer, contact page, structured data and emails (R11.5). The email shown is currently `FoodHausfoodhaus72@gmail.com`
+- [ ] Enter these in the admin under **Settings, Shop and company details** (they are stored in the database, no code change). They then appear in the footer. Before setting `LEGAL_APPROVED = true`, run `npm run contact:check`: it exits 1 until the details have been saved once and the legal name, Companies House number and registered office are filled in
+- [ ] Check the **shop address, phone number and email** in **Settings, Shop and company details**, then press Save once to confirm them. They start from the Google Maps listing (address 314-318 Selbourne Road, Luton LU4 8NU; phone 07438 795428; email `FoodHausfoodhaus72@gmail.com`) and must match your Google Business Profile exactly (R11.5). They appear in the footer, contact page, structured data, order emails and receipts. The **TikTok link** is still in `lib/shop.ts`
 - [ ] Optional: the shop's **latitude and longitude** for search-engine structured data (not added, because it must not be invented)
 
 ### A2. Decisions
@@ -28,7 +28,7 @@ Compiled 6 November 2026 from the code, the requirements (`docs/requirements.md`
 - [ ] **Should ordering be blocked in production until every allergen is entered?** Today the shop can take orders while allergen data is missing (customers are told to ask). A small code change if you want it blocked
 - [ ] **Domain (Q3):** is there an existing Food Haus website or domain to redirect, or is a new domain being registered? Which exact web address is canonical (with or without `www`)?
 - [ ] **Order email sender (Q10):** an address on the shop's own domain (not Gmail) and access to that domain's DNS settings
-- [ ] **Shop contact details in the admin (R9.9):** they are fixed in `lib/shop.ts` today, so changing one needs a code change and redeploy. Is that acceptable for launch, or should they become editable in Settings? (The notice bar is already editable.)
+- [x] **Shop contact details in the admin (R9.9):** built. Edit them under Settings; no code change or redeploy is needed
 
 ### A3. Menu and shop data (entered by the owner in the admin; the site goes live with whatever is there)
 - [ ] Check **every price, name and description**. The database holds the 38 items from the print menu as **sample data**, which carries the print typos (for example the meal option is named "Meal (fries + drink — contents TBC with owner)")
@@ -55,7 +55,7 @@ Every one of these is shown on the live page as an amber **PLACEHOLDER** box and
 #### Privacy Policy (/privacy): 24 decisions
 
 1. [ ] Date this policy was last updated _(Add once the owner approves the final wording.)_
-2. [ ] Legal name of the business, Companies House number and registered office address (the data controller) _(The site footer currently shows a provisional name that has not been confirmed (R11.11).)_
+2. [ ] Legal name of the business, Companies House number and registered office address (the data controller) _(Enter the confirmed details in Settings (Shop and company details): the site footer shows nothing for them until then (R11.11).)_
 3. [ ] ICO registration number, if the business is registered with the Information Commissioner's Office _(The owner or their adviser decides whether a registration applies.)_
 4. [ ] Legal basis for each use of personal data (for example contract, legal obligation, legitimate interests) in the wording the owner's adviser approves
 5. [ ] Payment provider name _(Expected: the provider the checkout uses today. Confirm.)_
@@ -216,7 +216,7 @@ Everything here was tested as far as it can be without the real service (fakes, 
 ---
 
 ## D. Not built (so nobody expects it at launch)
-**Must-have items not built:** none that can be built without the owner's information, except the one flagged in A2 (editing shop contact details in the admin: half of R9.9; it works through a code change today).
+**Must-have items not built:** none that can be built without the owner's information or a real deployment. Everything in the requirements marked Must is either built or is on this list for the owner or the deployment.
 
 **Should-have or later, not built:** `/about` page; local area pages and the blog (R5.7 to R5.9, R11.6); later-time ordering (Q5); an admin Refund button (refunds are done in Stripe); per-customer limits on offers and stacking offers; option groups for a single item rather than a whole category; card fees, refunds and VAT in the daily report; a scheduled sweep for unused photo files; error tracking and uptime monitoring.
 
@@ -227,7 +227,7 @@ Everything here was tested as far as it can be without the real service (fakes, 
 ## E. The order to do it in
 1. Owner answers section A2 and supplies A1 and the business facts.
 2. Create the accounts and keys (B). Create the real KV and D1 ids and put them in `wrangler.jsonc` (B6).
-3. Fill in the 54 placeholders with the adviser, put the company details in `lib/shop.ts`, then set `LEGAL_APPROVED = true`.
-4. In the admin, the owner checks prices, enters hours, zones and photos, and enters **every** allergen. `npm run allergens:check` says OK.
+3. Fill in the 54 placeholders with the adviser, enter the company details in Settings, run `npm run contact:check`, then set `LEGAL_APPROVED = true`.
+4. In the admin, the owner confirms the shop and company details, checks prices, enters hours, zones and photos, and enters **every** allergen. `npm run allergens:check` says OK.
 5. Deploy to a **preview** address first (`APP_ENV=preview`: hidden from search engines), and work through section C.
 6. Only then point the real domain at it and switch to `production`.

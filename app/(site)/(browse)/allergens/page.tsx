@@ -7,7 +7,8 @@ import { claimText, itemClaim, optionClaim, optionText } from "@/lib/allergens";
 import { readinessFromMenu } from "@/lib/allergen-readiness";
 import { allergenNotice, LEGAL_APPROVED } from "@/lib/legal";
 import { getMenu } from "@/lib/menu";
-import { shop } from "@/lib/shop";
+import { getContact } from "@/lib/contact-public";
+import { phoneDisplay } from "@/lib/contact-format";
 
 // SAFETY-CRITICAL (R11.10). Every line about an item comes from lib/allergens.ts, which only ever
 // states what the owner explicitly entered for that item. Nothing is inferred or defaulted.
@@ -37,6 +38,7 @@ export default function Page() {
 async function Body() {
   const menu = await getMenu();
   const readiness = readinessFromMenu(menu);
+  const contact = await getContact();
   const missing = readiness.itemsMissing.length + readiness.optionsMissing.length;
   return (
     <LegalPage
@@ -44,7 +46,7 @@ async function Body() {
       extraNotice={
         !readiness.ready && (
           <p role="note" data-testid="allergen-incomplete" className="rounded-lg border border-yellow-400 bg-yellow-400/10 p-3 text-yellow-200">
-            <strong>Allergen information is not complete.</strong> {readiness.itemsTotal === 0 ? "No menu items are listed yet." : `${readiness.itemsMissing.length} of ${readiness.itemsTotal} items${readiness.optionsMissing.length ? ` and ${readiness.optionsMissing.length} option${readiness.optionsMissing.length === 1 ? "" : "s"}` : ""} have no allergen information yet.`} Where an item says “not confirmed”, please ask us before ordering{missing ? `: call ${shop.phoneDisplay}` : ""}.
+            <strong>Allergen information is not complete.</strong> {readiness.itemsTotal === 0 ? "No menu items are listed yet." : `${readiness.itemsMissing.length} of ${readiness.itemsTotal} items${readiness.optionsMissing.length ? ` and ${readiness.optionsMissing.length} option${readiness.optionsMissing.length === 1 ? "" : "s"}` : ""} have no allergen information yet.`} Where an item says “not confirmed”, please ask us before ordering{missing ? `: call ${phoneDisplay(contact.phone)}` : ""}.
           </p>
         )
       }

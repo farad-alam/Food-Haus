@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_CONTACT } from "@/lib/contact";
 import { escapeHtml, renderCustomerEmail, renderShopEmail, type EmailOrder } from "@/lib/order-email";
 import { resendSender } from "@/lib/email";
 
@@ -18,7 +19,7 @@ const o: EmailOrder = {
 };
 
 describe("customer email", () => {
-  const m = renderCustomerEmail(o, "https://foodhaus.test");
+  const m = renderCustomerEmail(o, "https://foodhaus.test", DEFAULT_CONTACT);
   it("has the number, items, totals, payment, allergen reminder, phone and private link", () => {
     expect(m.subject).toBe("Food Haus order 1042 confirmed");
     for (const s of ["1042", "2 x Classic Burger (Meal)", "£17.48", "Pay £17.48 in cash on delivery", "Allergies or intolerances?", "printed allergen list", "07438 795428", "https://foodhaus.test/order/abcdefghijklmnopqrstuv"]) {
@@ -32,7 +33,7 @@ describe("customer email", () => {
     expect(m.html).toContain("&lt;script&gt;");
   });
   it("collection orders do not promise a delivery-bag allergen list", () => {
-    expect(renderCustomerEmail({ ...o, type: "collection" }, "https://x").text).not.toContain("delivery bag");
+    expect(renderCustomerEmail({ ...o, type: "collection" }, "https://x", DEFAULT_CONTACT).text).not.toContain("delivery bag");
   });
 });
 

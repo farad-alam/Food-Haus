@@ -59,7 +59,7 @@ export const privacyPolicy: LegalDoc = {
       id: "who",
       title: "Who we are",
       blocks: [
-        { t: "ph", ph: "Legal name of the business, Companies House number and registered office address (the data controller)", hint: "The site footer currently shows a provisional name that has not been confirmed (R11.11)." },
+        { t: "ph", ph: "Legal name of the business, Companies House number and registered office address (the data controller)", hint: "Enter the confirmed details in Settings (Shop and company details): the site footer shows nothing for them until then (R11.11)." },
         { t: "ph", ph: "ICO registration number, if the business is registered with the Information Commissioner's Office", hint: "The owner or their adviser decides whether a registration applies." },
       ],
     },

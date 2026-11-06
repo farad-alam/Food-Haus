@@ -8,6 +8,7 @@ import { api, failMessage, field, Msg, Section } from "./ui";
 
 const MON_FIRST = [1, 2, 3, 4, 5, 6, 0];
 import type { ClosureView, General, SettingsView, ZoneRow } from "@/lib/admin/settings";
+import { phoneDisplay, type Contact } from "@/lib/contact-format";
 
 // Settings (R9.9, R9.10): pause switch, opening hours, closure days, prep time
 // and cash limits, delivery zones. The server re-validates everything; the
@@ -45,6 +46,7 @@ export function SettingsPanel() {
       <HoursSection initial={view.hours} onSaved={load} />
       <ClosuresSection closures={view.closures} onChanged={load} />
       <GeneralSection general={view.general} onSaved={load} />
+      <ContactSection contact={view.contact} confirmed={view.contactConfirmed} onSaved={load} />
       <NoticeSection general={view.general} onSaved={load} />
       <ZonesSection zones={view.zones} onChanged={load} />
     </div>
@@ -227,6 +229,56 @@ function GeneralSection({ general, onSaved }: { general: General; onSaved: () =>
       </div>
       <p className="mt-2 text-sm text-muted">Leave the cash limit empty for no limit. The daily limits stop people placing lots of cash orders they never collect.</p>
       <button type="button" className="btn btn-primary mt-3 w-full sm:w-auto" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
+      <Msg text={msg.text} good={msg.good} />
+    </Section>
+  );
+}
+
+// ---- shop contact and company details ---------------------------------------------------
+
+function ContactSection({ contact, confirmed, onSaved }: { contact: Contact; confirmed: boolean; onSaved: () => void }) {
+  const [f, setF] = useState({
+    legalName: contact.legalName ?? "",
+    phone: phoneDisplay(contact.phone),
+    email: contact.email,
+    street: contact.street,
+    locality: contact.locality,
+    postcode: contact.postcode,
+    companyNumber: contact.companyNumber ?? "",
+    registeredOffice: contact.registeredOffice ?? "",
+    vatNumber: contact.vatNumber ?? "",
+  });
+  const [msg, setMsg] = useState<{ text: string; good?: boolean }>({ text: "" });
+  const [busy, setBusy] = useState(false);
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF((x) => ({ ...x, [k]: e.target.value }));
+  async function save() {
+    setBusy(true);
+    const o = await api("PUT", "/api/admin/settings/contact", { ...f, legalName: f.legalName || null, companyNumber: f.companyNumber || null, registeredOffice: f.registeredOffice || null, vatNumber: f.vatNumber || null });
+    setMsg(o.ok ? { text: "Saved. The footer, contact page, emails and search-engine details update within a minute.", good: true } : { text: failMessage(o) });
+    if (o.ok) onSaved();
+    setBusy(false);
+  }
+  const lbl = "block font-bold";
+  const inp = `${field} mt-1 block w-full font-normal`;
+  return (
+    <Section id="contact-h" title="Shop and company details" hint="Shown in the footer, on the contact page, in emails and receipts, and to search engines, always the same everywhere. Check them carefully: the name, address and phone must match your Google listing exactly.">
+      {!confirmed && <p role="note" className="mb-3 rounded-lg border border-yellow-400 p-3 text-yellow-400">These are the starting details taken from the Google Maps listing. Check each one and press Save once to confirm them.</p>}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className={lbl}>Phone<input inputMode="tel" autoComplete="off" className={inp} value={f.phone} onChange={set("phone")} /></label>
+        <label className={lbl}>Email shown to customers<input type="email" inputMode="email" autoComplete="off" className={inp} value={f.email} onChange={set("email")} /></label>
+        <label className={lbl}>Street address<input autoComplete="off" className={inp} value={f.street} maxLength={100} onChange={set("street")} /></label>
+        <label className={lbl}>Town<input autoComplete="off" className={inp} value={f.locality} maxLength={60} onChange={set("locality")} /></label>
+        <label className={lbl}>Postcode<input autoComplete="off" autoCapitalize="characters" className={inp} value={f.postcode} onChange={set("postcode")} /></label>
+      </div>
+      <h3 className="mt-5 font-bold">Company details (for the footer and the legal pages)</h3>
+      <div className="mt-2 grid gap-4 sm:grid-cols-2">
+        <label className={`${lbl} sm:col-span-2`}>Exact legal name of the business<input autoComplete="off" className={inp} value={f.legalName} maxLength={120} placeholder="As registered at Companies House" onChange={set("legalName")} /></label>
+        <label className={lbl}>Companies House number<input autoComplete="off" className={inp} value={f.companyNumber} placeholder="12345678" onChange={set("companyNumber")} /></label>
+        <label className={lbl}>VAT number (only if registered)<input autoComplete="off" className={inp} value={f.vatNumber} placeholder="GB123456789" onChange={set("vatNumber")} /></label>
+        <label className={`${lbl} sm:col-span-2`}>Registered office address<input autoComplete="off" className={inp} value={f.registeredOffice} maxLength={250} onChange={set("registeredOffice")} /></label>
+      </div>
+      <p className="mt-2 text-sm text-muted">Leave a company detail empty if you do not have it: nothing is shown in its place.</p>
+      <button type="button" className="btn btn-primary mt-3 w-full sm:w-auto" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save details"}</button>
       <Msg text={msg.text} good={msg.good} />
     </Section>
   );

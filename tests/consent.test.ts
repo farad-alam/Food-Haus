@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { analyticsCookieNames, consentCookie, CONSENT_COOKIE, CONSENT_MAX_AGE_S, CONSENT_VERSION, gaScriptSrc, parseConsent, readCookie, validGaId } from "@/lib/consent";
 import { LEGAL_APPROVED, outstandingPlaceholders, placeholdersIn, cookiePolicy, privacyPolicy, termsPolicy } from "@/lib/legal";
 import { CHECKOUT_EXPIRY_MINUTES } from "@/lib/stripe";
-import { company } from "@/lib/shop";
 
 const NOW = Date.parse("2026-11-06T12:00:00Z");
 const val = (c: string) => c.split(";")[0].split("=")[1];
@@ -48,12 +47,6 @@ describe("legal pages", () => {
   it("are DRAFT: while any decision is open they cannot be marked approved", () => {
     if (LEGAL_APPROVED) expect(outstandingPlaceholders()).toEqual([]);
     else expect(outstandingPlaceholders().length).toBeGreaterThan(0);
-  });
-  it("cannot be approved while the company number and registered office (R11.11) are still empty", () => {
-    if (LEGAL_APPROVED) {
-      expect(company.number).toBeTruthy();
-      expect(company.registeredOffice).toBeTruthy();
-    }
   });
   it("mark every business/legal decision as a placeholder", () => {
     const text = (d: typeof privacyPolicy) => JSON.stringify(d);

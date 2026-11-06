@@ -8,7 +8,8 @@ import { getDb } from "@/lib/db/client";
 import { formatPenceExact } from "@/lib/money";
 import { ACTIVE_STATUSES, orderWasPlaced, paymentLine, statusLine } from "@/lib/order-status";
 import { loadOrderByToken } from "@/lib/order-view";
-import { shop } from "@/lib/shop";
+import { getContact } from "@/lib/contact-public";
+import { phoneDisplay, telHref } from "@/lib/contact-format";
 
 // R5.5 / R6.12 / R13.15: reached only through the random token in the URL.
 // Never indexed, never cached, and the token is not leaked in the Referer header.
@@ -34,7 +35,8 @@ async function OrderBody({ params }: { params: Promise<{ token: string }> }) {
   if (!o) notFound();
 
   const line = statusLine(o);
-  const tel = `tel:${shop.phone.replace(/\s/g, "")}`;
+  const contact = await getContact();
+  const tel = telHref(contact.phone);
   const color = line.tone === "good" ? "text-green-400" : line.tone === "bad" ? "text-red-400" : "text-brand";
 
   return (
@@ -84,7 +86,7 @@ async function OrderBody({ params }: { params: Promise<{ token: string }> }) {
       </section>
 
       <p className="mt-6 flex flex-wrap gap-3">
-        <a href={tel} className="btn btn-primary">Call {shop.phoneDisplay}</a>
+        <a href={tel} className="btn btn-primary">Call {phoneDisplay(contact.phone)}</a>
         <Link href="/menu" className="btn btn-ghost">Back to the menu</Link>
       </p>
     </>

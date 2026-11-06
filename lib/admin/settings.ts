@@ -3,6 +3,7 @@ import { closure, deliveryZone, openingHours, settings } from "@/db/schema";
 import type { Db } from "@/lib/db/client";
 import { londonParts } from "@/lib/hours";
 import { cleanNotice } from "@/lib/notice-text";
+import { contactFromStored, isConfirmed, type Contact } from "@/lib/contact";
 import { shopState } from "@/lib/shop-status";
 import { auditInsert, type Actor } from "./audit";
 import { normaliseTime, sortWindows, validateWindows, type HoursWindow } from "./hours-validate";
@@ -24,7 +25,7 @@ export type General = {
 export type ZoneRow = { id: number; district: string; fee: number; minOrder: number; estimatedMinutes: number; active: boolean };
 export type ClosureView = { id: number; day: string; reason: string | null };
 export type ShopStatus = { open: boolean; reason: "open" | "paused" | "no_hours" | "closure" | "outside_hours" };
-export type SettingsView = { general: General; hours: HoursWindow[]; closures: ClosureView[]; zones: ZoneRow[]; status: ShopStatus };
+export type SettingsView = { contact: Contact; contactConfirmed: boolean; general: General; hours: HoursWindow[]; closures: ClosureView[]; zones: ZoneRow[]; status: ShopStatus };
 
 const DEFAULTS: General = {
   paused: false,
@@ -59,14 +60,17 @@ export function shopStatus(general: General, hours: HoursWindow[], closures: { d
 
 export async function loadSettingsView(db: Db, now: Date): Promise<SettingsView> {
   const today = londonParts(now).date;
-  const [general, hoursRows, closureRows, zoneRows] = await Promise.all([
+  const [general, hoursRows, closureRows, zoneRows, [contactRow]] = await Promise.all([
     loadGeneral(db),
     db.select().from(openingHours).orderBy(asc(openingHours.weekday), asc(openingHours.opensAt)),
     db.select().from(closure).where(gte(closure.day, today)).orderBy(asc(closure.day)),
     db.select().from(deliveryZone).orderBy(asc(deliveryZone.district)),
+    db.select({ c: settings.contact }).from(settings).where(eq(settings.id, 1)).limit(1),
   ]);
   const hours = hoursRows.map((r) => ({ weekday: r.weekday, opensAt: normaliseTime(r.opensAt)!, closesAt: normaliseTime(r.closesAt)! }));
   return {
+    contact: contactFromStored(contactRow?.c),
+    contactConfirmed: isConfirmed(contactRow?.c),
     general,
     hours,
     closures: closureRows.map((c) => ({ id: c.id, day: c.day, reason: c.reason })),
@@ -107,6 +111,16 @@ export async function setPause(db: Db, a: Actor, p: { paused: boolean; message?:
   await db.batch([
     upsertSettings(db, { paused: p.paused, pausedMessage: message }),
     audit(db, a, p.paused ? "settings.pause" : "settings.resume", "settings", { paused: before.paused, message: before.pausedMessage }, { paused: p.paused, message }),
+  ]);
+  return { ok: true };
+}
+
+export async function saveContact(db: Db, a: Actor, c: Contact): Promise<Result> {
+  const [s] = await db.select({ c: settings.contact }).from(settings).where(eq(settings.id, 1)).limit(1);
+  const before = contactFromStored(s?.c);
+  await db.batch([
+    db.insert(settings).values({ id: 1, contact: c }).onConflictDoUpdate({ target: settings.id, set: { contact: c } }),
+    audit(db, a, "settings.contact", "settings", before, c),
   ]);
   return { ok: true };
 }

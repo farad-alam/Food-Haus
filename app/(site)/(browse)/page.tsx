@@ -9,7 +9,9 @@ import { ReviewsBlock } from "@/components/reviews";
 import { getMenu } from "@/lib/menu";
 import { getSchedule } from "@/lib/schedule-public";
 import { formatPence } from "@/lib/money";
-import { fullAddress, mapsLink, shop } from "@/lib/shop";
+import { getContact } from "@/lib/contact-public";
+import { fullAddress, mapsLinkFor, phoneDisplay, telHref } from "@/lib/contact-format";
+import { shop } from "@/lib/shop";
 
 export const metadata: Metadata = pageMetadata({
   title: "Food Haus — Halal Burger Takeaway & Delivery in Luton",
@@ -20,11 +22,12 @@ export const metadata: Metadata = pageMetadata({
 
 export default async function Home() {
   const menu = await getMenu();
+  const contact = await getContact();
   const { hours } = await getSchedule(); // owner-entered opening hours, for the structured data
 
   return (
     <main>
-      <RestaurantJsonLd menu={menu} hours={hours} />
+      <RestaurantJsonLd menu={menu} hours={hours} contact={contact} />
 
       {/* Hero: one line, one action (Build principles) */}
       <section className="border-b border-line bg-gradient-to-b from-surface to-ink">
@@ -40,8 +43,8 @@ export default async function Home() {
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/menu" className="btn btn-primary">Order now</Link>
-            <a href={`tel:${shop.phone.replace(/\s/g, "")}`} className="btn btn-ghost" data-event="click_call">
-              Call {shop.phoneDisplay}
+            <a href={telHref(contact.phone)} className="btn btn-ghost" data-event="click_call">
+              Call {phoneDisplay(contact.phone)}
             </a>
           </div>
           {/* Live offers (R9.8): only what the owner is running right now */}
@@ -89,9 +92,9 @@ export default async function Home() {
 
       <section className="mx-auto max-w-5xl px-4 pb-10" aria-labelledby="find">
         <h2 id="find" className="font-display text-3xl">Find us</h2>
-        <p className="mt-2">{shop.name}, {fullAddress}</p>
+        <p className="mt-2">{shop.name}, {fullAddress(contact)}</p>
         <p className="mt-3">
-          <a href={mapsLink} rel="noopener noreferrer" className="btn btn-ghost" data-event="click_directions">Get directions</a>
+          <a href={mapsLinkFor(contact)} rel="noopener noreferrer" className="btn btn-ghost" data-event="click_directions">Get directions</a>
         </p>
       </section>
     </main>

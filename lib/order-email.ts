@@ -4,7 +4,8 @@ import type { Db } from "@/lib/db/client";
 import type { EmailMessage, EmailSender } from "./email";
 import { formatPenceExact } from "./money";
 import { paymentLine } from "./order-status";
-import { fullAddress, shop } from "./shop";
+import { loadContact } from "./contact-public";
+import { fullAddress, phoneDisplay, type Contact } from "./contact-format";
 
 // Order emails (R6.11, R11.10, R13.10).
 //  - Customer confirmation: number, items, total, payment status, allergen
@@ -36,9 +37,10 @@ export function escapeHtml(s: string): string {
 const itemText = (i: EmailOrder["items"][number]) =>
   `${i.quantity} x ${i.name}${i.options.length ? ` (${i.options.map((o) => o.name).join(", ")})` : ""}`;
 
-export function renderCustomerEmail(o: EmailOrder, siteUrl: string): EmailMessage & { subject: string } {
+export function renderCustomerEmail(o: EmailOrder, siteUrl: string, contact: Contact): EmailMessage & { subject: string } {
   const link = `${siteUrl}/order/${o.token}`;
-  const phone = shop.phoneDisplay;
+  const phone = phoneDisplay(contact.phone);
+  const address = fullAddress(contact);
   const allergen =
     `Allergies or intolerances? Check the allergen information at ${siteUrl}/allergens, and call us on ${phone} before you eat if you are unsure.` +
     (o.type === "delivery" ? " A printed allergen list is included in your delivery bag." : "");
@@ -48,7 +50,7 @@ export function renderCustomerEmail(o: EmailOrder, siteUrl: string): EmailMessag
     ...(o.discount ? [["Offer", `-${formatPenceExact(o.discount)}`]] : []),
     ["Total", formatPenceExact(o.total)],
   ];
-  const how = o.type === "delivery" ? "Delivery" : `Collection from ${fullAddress}`;
+  const how = o.type === "delivery" ? "Delivery" : `Collection from ${address}`;
 
   const text = [
     `Thanks ${o.name}, we've got your order.`,
@@ -66,7 +68,7 @@ export function renderCustomerEmail(o: EmailOrder, siteUrl: string): EmailMessag
     "",
     allergen,
     "",
-    `Food Haus, ${fullAddress}. Phone ${phone}.`,
+    `Food Haus, ${address}. Phone ${phone}.`,
   ].join("\n");
 
   const rows = o.items
@@ -85,7 +87,7 @@ export function renderCustomerEmail(o: EmailOrder, siteUrl: string): EmailMessag
 ${o.note ? `<p>Your note: ${escapeHtml(o.note)}</p>` : ""}
 <p><a href="${escapeHtml(link)}" style="display:inline-block;background:#F47B20;color:#000;padding:12px 20px;text-decoration:none;font-weight:bold;border-radius:6px">Track your order</a></p>
 <p style="background:#fff4e8;padding:12px;border-radius:6px">${escapeHtml(allergen)}</p>
-<p style="color:#555;font-size:13px">Food Haus, ${escapeHtml(fullAddress)}. Phone ${escapeHtml(phone)}.</p>
+<p style="color:#555;font-size:13px">Food Haus, ${escapeHtml(address)}. Phone ${escapeHtml(phone)}.</p>
 </body></html>`;
 
   return { to: "", subject: `Food Haus order ${o.number} confirmed`, text, html };
@@ -144,7 +146,7 @@ export async function sendOrderEmails(deps: OrderEmailDeps, orderId: number): Pr
     };
 
     const jobs: { column: "confirmationEmailedAt" | "shopNotifiedAt"; message: EmailMessage }[] = [
-      { column: "confirmationEmailedAt", message: { ...renderCustomerEmail(data, deps.siteUrl), to: row.email } },
+      { column: "confirmationEmailedAt", message: { ...renderCustomerEmail(data, deps.siteUrl, (await loadContact(db)).contact), to: row.email } },
     ];
     if (deps.shopTo) jobs.push({ column: "shopNotifiedAt", message: { ...renderShopEmail(data), to: deps.shopTo } });
 

@@ -9,7 +9,8 @@ import { Turnstile } from "@/components/turnstile";
 import { MAX_NOTE } from "@/lib/basket-store";
 import { formatPenceExact } from "@/lib/money";
 import { parsePostcode } from "@/lib/pricing";
-import { shop } from "@/lib/shop";
+import { useContact } from "@/components/contact-context";
+import { phoneDisplay } from "@/lib/contact-format";
 
 // Checkout (R6.6, R6.9, R6.10, R6.14, R13.7). Everything priced here is a
 // PREVIEW from POST /api/quote; the browser sends only item ids, quantities
@@ -29,6 +30,7 @@ export function CheckoutForm() {
   const router = useRouter();
   const cancelled = useSearchParams().get("cancelled") === "1";
   const { lines, note, setQty, setNote } = useBasket();
+  const contact = useContact();
   // Server render and first client render see an empty basket; wait for the real one.
   const hydrated = useSyncExternalStore(noop, () => true, () => false);
 
@@ -220,7 +222,7 @@ export function CheckoutForm() {
             </label>
           ))}
         </div>
-        {orderType === "collection" && <p className="mt-2 text-sm text-muted">Collect from {shop.address.street}, {shop.address.postcode}.</p>}
+        {orderType === "collection" && <p className="mt-2 text-sm text-muted">Collect from {contact.street}, {contact.postcode}.</p>}
         {orderType === "delivery" && (
           <div className="mt-3">
             <label htmlFor="postcode" className="font-bold">Postcode</label>
@@ -265,7 +267,7 @@ export function CheckoutForm() {
           <label htmlFor="note" className="font-bold">Note for the kitchen (optional)</label>
           <input id="note" name="note" className={input} value={note} maxLength={MAX_NOTE} onChange={(e) => setNote(e.target.value)} {...aria("note")} />
           <p className="mt-1 text-sm text-muted">
-            Allergies or intolerances? Tell us here and check the <Link href="/allergens" className="underline">allergen information</Link>; call {shop.phoneDisplay} if you are unsure.
+            Allergies or intolerances? Tell us here and check the <Link href="/allergens" className="underline">allergen information</Link>; call {phoneDisplay(contact.phone)} if you are unsure.
           </p>
           {fieldErr("note")}
         </div>

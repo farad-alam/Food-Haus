@@ -1,3 +1,4 @@
+import type { Contact } from "@/lib/contact-format";
 import type { HoursRow } from "@/lib/hours";
 import type { Menu } from "@/lib/menu";
 import { shop, SITE_URL } from "@/lib/shop";
@@ -21,7 +22,7 @@ export function openingHoursSpec(hours: HoursRow[]) {
     .map((h) => ({ "@type": "OpeningHoursSpecification", dayOfWeek: `https://schema.org/${DAY_URL[h.weekday]}`, opens: hm(h.opensAt), closes: hm(h.closesAt) }));
 }
 
-export function RestaurantJsonLd({ menu, hours = [] }: { menu: Menu; hours?: HoursRow[] }) {
+export function RestaurantJsonLd({ menu, hours = [], contact }: { menu: Menu; hours?: HoursRow[]; contact: Contact }) {
   const spec = openingHoursSpec(hours);
   const data = {
     "@context": "https://schema.org",
@@ -29,15 +30,15 @@ export function RestaurantJsonLd({ menu, hours = [] }: { menu: Menu; hours?: Hou
     "@id": `${SITE_URL}/#restaurant`,
     name: shop.name,
     url: SITE_URL,
-    telephone: shop.phone,
+    telephone: contact.phone,
     priceRange: "££",
     servesCuisine: ["Burgers", "Fried chicken", "Halal"],
     address: {
       "@type": "PostalAddress",
-      streetAddress: shop.address.street,
-      addressLocality: shop.address.locality,
-      postalCode: shop.address.postcode,
-      addressCountry: shop.address.country,
+      streetAddress: contact.street,
+      addressLocality: contact.locality,
+      postalCode: contact.postcode,
+      addressCountry: shop.country,
     },
     ...(spec.length ? { openingHoursSpecification: spec } : {}),
     hasMenu: {

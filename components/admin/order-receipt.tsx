@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatPenceExact } from "@/lib/money";
-import { fullAddress, shop } from "@/lib/shop";
+import { fullAddress, phoneDisplay, type Contact } from "@/lib/contact-format";
+import { shop } from "@/lib/shop";
 import type { OrderDetail } from "@/lib/admin/history";
 import { paymentText, StatusBadge } from "./status-badge";
 import { PrintButton } from "./print-button";
@@ -22,7 +23,7 @@ function actionText(t: OrderDetail["trail"][number]): string {
   }
 }
 
-export function OrderReceipt({ o }: { o: OrderDetail }) {
+export function OrderReceipt({ o, contact }: { o: OrderDetail; contact: Contact }) {
   const tel = o.phone.replace(/\s/g, "");
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 pb-20 pt-6 print:max-w-none print:px-0 print:pt-0">
@@ -32,7 +33,7 @@ export function OrderReceipt({ o }: { o: OrderDetail }) {
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="font-display text-2xl text-brand print:text-black">{shop.name}</p>
-            <p className="text-sm text-muted print:text-black">{fullAddress}<br />{shop.phoneDisplay}</p>
+            <p className="text-sm text-muted print:text-black">{fullAddress(contact)}<br />{phoneDisplay(contact.phone)}</p>
           </div>
           <div className="text-right">
             <p className="font-display text-5xl leading-none">#{o.number}</p>

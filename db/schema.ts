@@ -214,7 +214,7 @@ export const settings = pgTable("settings", {
   cashMaxPence: integer("cash_max_pence"), // R6.10; null = no cap
   cashDailyCapPerPhone: integer("cash_daily_cap_per_phone").notNull().default(3), // R6.15
   cashDailyCapPerIp: integer("cash_daily_cap_per_ip").notNull().default(5), // R6.15
-  contact: jsonb("contact").$type<Record<string, string>>().notNull().default({}),
+  contact: jsonb("contact").$type<Record<string, string | null>>().notNull().default({}), // shop contact and company details (lib/contact.ts); {} = not yet confirmed by the owner
 });
 
 export const adminUser = pgTable("admin_user", {

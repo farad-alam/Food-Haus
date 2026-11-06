@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { loadContact } from "@/lib/contact-public";
 import { OrderReceipt } from "@/components/admin/order-receipt";
 import { loadOrderDetail } from "@/lib/admin/history";
 import { requireAdminPage } from "@/lib/admin/page-auth";
@@ -22,5 +23,6 @@ async function Order({ params }: { params: Promise<{ number: string }> }) {
   if (!/^\d{1,9}$/.test(number)) notFound();
   const detail = await loadOrderDetail(getDb(), Number(number));
   if (!detail) notFound();
-  return <OrderReceipt o={detail} />;
+  const { contact } = await loadContact(getDb());
+  return <OrderReceipt o={detail} contact={contact} />;
 }

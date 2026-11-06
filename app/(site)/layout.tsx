@@ -6,14 +6,18 @@ import { NoticeBar } from "@/components/notice-bar";
 import { validGaId } from "@/lib/consent";
 import { getSchedule } from "@/lib/schedule-public";
 import { weekTimetable } from "@/lib/shop-status";
-import { company, fullAddress, mapsLink, shop } from "@/lib/shop";
+import { ContactProvider } from "@/components/contact-context";
+import { getContact } from "@/lib/contact-public";
+import { fullAddress, mapsLinkFor, phoneDisplay, telHref } from "@/lib/contact-format";
 
 // Public site chrome: header, basket, footer. The admin panel (app/admin) lives
 // outside this group so it never inherits any of it.
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
+export default async function SiteLayout({ children }: { children: React.ReactNode }) {
+  const contact = await getContact(); // from the database (Settings), cached; refreshes when the owner saves
   // R11.9: with no GA4 ID configured there is nothing to ask about, so no banner and no analytics code.
   const analyticsId = validGaId(process.env.NEXT_PUBLIC_GA_ID);
   return (
+    <ContactProvider value={contact}>
     <BasketProvider>
           {/* First, on purpose: its effect must run before any page component's effect, so the gtag queue exists when a page sends its first event. */}
           <Analytics id={analyticsId} />
@@ -50,20 +54,20 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
             <div className="mx-auto grid max-w-5xl gap-6 px-4 py-8 pb-28 text-sm text-muted sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <p className="font-display text-2xl text-text">FOOD HAUS</p>
-                <p>{shop.legalName}</p>
-                {company.number && <p>Company no. {company.number}</p>}
-                {company.registeredOffice && <p>Registered office: {company.registeredOffice}</p>}
-                {company.vatNumber && <p>VAT no. {company.vatNumber}</p>}
+                {contact.legalName && <p>{contact.legalName}</p>}
+                {contact.companyNumber && <p>Company no. {contact.companyNumber}</p>}
+                {contact.registeredOffice && <p>Registered office: {contact.registeredOffice}</p>}
+                {contact.vatNumber && <p>VAT no. {contact.vatNumber}</p>}
                 <p>Halal · Burgers · Good vibes</p>
               </div>
               <address className="not-italic">
                 <p className="font-semibold text-text">Find us</p>
-                <p>{fullAddress}</p>
+                <p>{fullAddress(contact)}</p>
                 <p>
-                  <a href={`tel:${shop.phone.replace(/\s/g, "")}`} data-event="click_call">{shop.phoneDisplay}</a>
+                  <a href={telHref(contact.phone)} data-event="click_call">{phoneDisplay(contact.phone)}</a>
                 </p>
                 <p>
-                  <a href={mapsLink} rel="noopener noreferrer" data-event="click_directions">
+                  <a href={mapsLinkFor(contact)} rel="noopener noreferrer" data-event="click_directions">
                     Get directions
                   </a>
                 </p>
@@ -84,6 +88,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
             </div>
           </footer>
         </BasketProvider>
+    </ContactProvider>
   );
 }
 

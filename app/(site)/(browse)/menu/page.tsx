@@ -9,7 +9,8 @@ import { getMenu } from "@/lib/menu";
 import { claimText, itemClaim } from "@/lib/allergens";
 import { photoSrcSet, photoUrl } from "@/lib/photos/keys";
 import { formatPence, formatPenceExact } from "@/lib/money";
-import { shop } from "@/lib/shop";
+import { getContact } from "@/lib/contact-public";
+import { phoneDisplay } from "@/lib/contact-format";
 
 export const metadata: Metadata = pageMetadata({
   title: "Order Halal Burgers Online in Luton",
@@ -20,6 +21,7 @@ export const metadata: Metadata = pageMetadata({
 // R10.9: menu data ships in the HTML — no spinner on first view.
 export default async function MenuPage() {
   const menu = await getMenu();
+  const phone = phoneDisplay((await getContact()).phone);
 
   return (
     <main>
@@ -69,7 +71,7 @@ export default async function MenuPage() {
                       <span className="whitespace-nowrap font-bold text-brand">{formatPence(item.price)}</span>
                     </div>
                     {item.description && <p className="mt-1 text-sm text-muted">{item.description}</p>}
-                    <ItemAllergens item={item} options={menu.optionGroups[item.category]?.options ?? []} />
+                    <ItemAllergens phone={phone} item={item} options={menu.optionGroups[item.category]?.options ?? []} />
                   </div>
                   <div className="flex justify-end">
                     <AddToBasket id={item.id} name={item.name} price={item.price} soldOut={item.soldOut} optionGroup={menu.optionGroups[item.category] ?? null} />
@@ -89,12 +91,12 @@ export default async function MenuPage() {
 }
 
 /** The ONLY allergen line on a menu card: whatever lib/allergens.ts says may be claimed, never anything inferred. */
-function ItemAllergens({ item, options }: { item: { allergens: string[] | null }; options: { allergens: string[] | null }[] }) {
+function ItemAllergens({ phone, item, options }: { phone: string; item: { allergens: string[] | null }; options: { allergens: string[] | null }[] }) {
   const { text, ask } = claimText(itemClaim(item.allergens, options.map((o) => o.allergens)), options.length > 0);
   return (
     <p className="mt-2 text-xs text-muted" data-allergen-claim={item.allergens === null ? "unknown" : "entered"}>
       {text}
-      {ask && <> Call {shop.phoneDisplay}.</>}
+      {ask && <> Call {phone}.</>}
     </p>
   );
 }
