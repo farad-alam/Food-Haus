@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { RestaurantJsonLd } from "@/components/json-ld";
 import { Suspense } from "react";
@@ -6,20 +7,24 @@ import { AddToBasket } from "@/components/basket";
 import { OfferStrip } from "@/components/live-offers";
 import { ReviewsBlock } from "@/components/reviews";
 import { getMenu } from "@/lib/menu";
+import { getSchedule } from "@/lib/schedule-public";
 import { formatPence } from "@/lib/money";
 import { fullAddress, mapsLink, shop } from "@/lib/shop";
 
-export const metadata: Metadata = {
-  title: { absolute: "Food Haus — Halal Burger Takeaway & Delivery in Luton" },
-  alternates: { canonical: "/" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Food Haus — Halal Burger Takeaway & Delivery in Luton",
+  absoluteTitle: true,
+  description: "Order halal smash burgers, wings, loaded fries and wraps direct from Food Haus in Luton (LU4). Delivery and collection, pay by card or cash.",
+  path: "/",
+});
 
 export default async function Home() {
   const menu = await getMenu();
+  const { hours } = await getSchedule(); // owner-entered opening hours, for the structured data
 
   return (
     <main>
-      <RestaurantJsonLd menu={menu} />
+      <RestaurantJsonLd menu={menu} hours={hours} />
 
       {/* Hero: one line, one action (Build principles) */}
       <section className="border-b border-line bg-gradient-to-b from-surface to-ink">

@@ -75,7 +75,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] One idempotency key per distinct order (changes when the basket or details change), so retries and double taps never duplicate an order
 - [x] Ordering is disabled with a message while the shop is closed or paused
 - [x] Turnstile widget loads only when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set (CSP allows `challenges.cloudflare.com`). Set the site key and `TURNSTILE_SECRET_KEY` together, and test it against real Turnstile: it is untested here
-- [ ] "Make it a Meal" (item options) cannot yet be chosen on the menu or in the basket; the API supports options
+- [x] "Make it a Meal" (item options) can be chosen on the menu and in the basket (option picker)
 - [x] Old `auth_event` rows (login and promo counters) are pruned by the scheduled maintenance job
 
 ## Admin login and order board (`/admin`)
@@ -100,7 +100,8 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] Default prep time and cash limits (largest cash order, per-phone and per-IP daily caps) editable
 - [x] Every change is written to `audit_log` with before/after in the same transaction as the change (R9.13)
 - [x] The public site now shows a "closed, reopens at..." notice and the opening hours on the contact page (see "Closed notice" below). Still open: opening hours in the footer and in the JSON-LD structured data (R11.2)
-- [ ] "Site-wide notice bar" and shop contact details (rest of R9.9) are not editable yet
+- [x] Site-wide notice bar: editable in Settings (plain text, 200 characters), shown at the top of every public page from the page HTML (layout shift 0.0000), audited
+- [ ] Shop contact details (name, phone, email, address) are still fixed in `lib/shop.ts`, not editable in the admin (the other half of R9.9). They are the single source for the footer, contact page, structured data and emails (R11.5), so moving them to the database is a refactor with some risk; a code change and redeploy works until then. Decide whether this is needed before launch
 
 ## Menu manager (`/admin/menu`)
 - [x] Owner and manager only (`menu.edit`): every route goes through one wrapper that authorises, origin-checks, validates the body (strict keys, size-capped) and maps the result; kitchen gets 403/404
@@ -112,7 +113,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] The public menu cache is refreshed after every write with no stale copy served (`revalidateTag("menu", { expire: 0 })`): verified in a browser that price, sold-out, hidden, new items and reordering show on the very next page view. Ordering never uses that cache; checkout and pricing read the database
 - [x] Item ids are built from the category's stable slug and the item's stable slug, so renaming a category or an item does not break customers' saved baskets. Moving an item to another category does change its id (a basket holding it will be told it is no longer on the menu)
 - [x] Category names must be unique (case-insensitive) because the public menu matches by name; a category with items or an offer cannot be deleted; hidden categories' options never reach the public menu
-- [ ] Photo upload with automatic resizing (R9.7) is not built: it needs file storage (Cloudflare R2) that is not set up. Items have no photos yet
+- [x] Photo upload with automatic resizing (R9.7): built, see "Photo upload" below. Items have no photos yet because none have been uploaded
 - [x] Customers can now CHOOSE options (see "Option picker" below)
 - [ ] Option groups attached to a single item (rather than a whole category) are not supported by the menu model or the manager
 
@@ -155,7 +156,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] The home page shows "Open now, taking orders until 11pm" while open (now in the status strip under the header, see "Google reviews" below)
 - [x] The contact page shows the weekly opening hours from the admin settings (nothing is published until the owner has entered them)
 - [x] Whether the shop is open right now is computed at request time from the clock; only the raw schedule is cached (expired at once by every admin save of hours, closed days or the pause switch). A page therefore cannot say "open" after closing time, and pausing shows on the very next page view (browser-verified)
-- [ ] Opening hours are not yet in the footer or in the JSON-LD structured data (R11.2, R5.1 "hours, address and map" block)
+- [x] Opening hours now appear in the footer and the JSON-LD structured data, from the hours the owner enters in Settings (nothing is shown until they do)
 
 ## Daily sales email (R9.12)
 - [x] Sent after closing time to the owner accounts (active users with the owner role; managers, kitchen and disabled owners never receive it). It goes out from the existing 5-minute cron once a trading day is over, 15 minutes after that day's last closing time, so card payments in flight have settled
@@ -205,7 +206,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 
 ## Privacy and cookie pages, cookie consent (R5.10, R11.9, R11.12, R13.11)
 - [x] `/privacy` and `/cookies` are built as data in `lib/legal.ts`: facts that come from how the site works (what the order form collects, the 12-month wipe, the cookies and browser storage really used) are written out; every legal or business decision is a clearly marked amber PLACEHOLDER box. No real provider is named as fact
-- [x] While `LEGAL_APPROVED` is `false` in `lib/legal.ts` both pages show a DRAFT notice, are `noindex` and are left out of the sitemap. A test refuses `LEGAL_APPROVED = true` while any placeholder remains. Currently 24 placeholders on privacy, 7 on cookies, 19 on terms, 3 on allergens
+- [x] While `LEGAL_APPROVED` is `false` in `lib/legal.ts` both pages show a DRAFT notice, are `noindex` and are left out of the sitemap. A test refuses `LEGAL_APPROVED = true` while any placeholder remains. Currently 24 placeholders on privacy, 7 on cookies, 19 on terms, 4 on allergens (54 in all)
 - [x] Cookie banner with identical Accept and Reject buttons (same size and style, verified in a browser); the choice is saved in one first-party cookie `fh_consent` for 6 months, then asked again. Footer "Cookie settings" and the buttons on `/cookies` change it any time; Reject also deletes `_ga*` cookies
 - [x] Google Analytics 4 loads only after Accept, after the page has loaded and the browser is idle (R10.7). Verified: no request to Google while unanswered or rejected. With no `NEXT_PUBLIC_GA_ID` there is no banner, no button and no analytics code. A malformed ID is ignored
 - [ ] **Owner/adviser must fill in every placeholder** (legal name, Companies House number, ICO registration, legal bases, provider names and transfer wording, retention wording, privacy contact, cookie lifetimes for the payment and bot-check providers), then set `LEGAL_APPROVED = true` (one switch for all three pages). Each page shows how many remain at the top
@@ -222,7 +223,7 @@ Tick every box before launch. Done = exists in the repo today; the rest is still
 - [x] **Staff warning:** owners and managers see a yellow "Allergen information is NOT complete: N of M items…" banner on every admin page until it is complete (kitchen staff do not, they cannot fix it). The menu manager already lists the missing items; its option editor now has the same explicit "Not entered yet / I have checked" choice, nothing pre-ticked
 - [x] `npm run allergens:check` lists every missing item and option and exits 1 until complete. Run it as part of go-live (it currently reports 38 of 38 items and 1 option missing)
 - [ ] **The owner must enter allergen data for all 38 items and the "Make it a Meal" option** (the print menu's own note says the meal contents are still "TBC with owner", so that option cannot be confirmed until its contents are). Only someone who knows the recipes and suppliers can do this; it was NOT guessed
-- [ ] Placeholders for the kitchen/cross-contamination statement, how often information is re-checked, and the allergen phone line (3 boxes on `/allergens`) are for the owner or their adviser; part of the single `LEGAL_APPROVED` switch
+- [ ] Placeholders for the kitchen/cross-contamination statement, how often information is re-checked, and the allergen phone line (4 boxes on `/allergens`, counting the review date) are for the owner or their adviser; part of the single `LEGAL_APPROVED` switch
 - [ ] Not enforced: the shop can still take orders while data is incomplete (customers see "please ask"). If you want ordering blocked in production until `allergens:check` passes, say so; it is a small change
 
 ## Photo upload (R9.7, R10.5, R11.15)
@@ -243,3 +244,12 @@ Built against two small interfaces (`lib/photos/types.ts`): **PhotoStore** (memo
 - [ ] Orphans: if the database write fails after the files were stored, or a cleanup call fails, an unused file is left behind (harmless, logged). There is no scheduled sweep; add an R2 lifecycle rule or a small job if it ever matters
 - [ ] Photos for options, categories and the home page hero are not part of this step; only menu items have photos
 - [x] **Found and fixed while checking the Cloudflare build:** `wrangler.jsonc` was not valid JSONC (a missing comma before the cron block), so `opennextjs-cloudflare build` and every deploy would have failed. It now builds (`.open-next/worker.js`). This also means the Cloudflare cron handler had never been through a build; it still has not run on Cloudflare
+
+## GA4 events, share tags, allergen grid, company details
+- [x] **GA4 events (R11.8):** view_menu, add_to_cart, begin_checkout, purchase (value and payment type, once per order, using the public order number, never the private link), promo_applied, click_call, click_directions. Sent only after Accept and once the Google tag is set up; nothing is queued or remembered before that. No name, phone, email, address or token is ever in an event. Verified in a browser with a stubbed Google tag: nothing before or after Reject, one event each after Accept, no duplicate purchase on reload
+- [ ] Confirm in GA4's real-time report that the events arrive once `NEXT_PUBLIC_GA_ID` is set in the build (R11.9 acceptance); a stubbed tag cannot show that
+- [x] Every public page has its own title, description, canonical URL, Open Graph and Twitter card with a share image (`public/share.png`, a simple branded card: replace with a photo-led image when there is one). One H1 per page, checked
+- [x] `/allergens` now has the grid of items against the 14 allergens (R11.10), plus the per-item wording. A cell says "contains", "can be added by an option" or "not in this item" only when the data allows it; otherwise "?". Verified: with no data, all 532 cells are "?"
+- [x] Footer shows the company number, registered office and VAT number when they are set in `lib/shop.ts` (`company`); empty today, so nothing is shown. `LEGAL_APPROVED` cannot be turned on while the number and registered office are empty
+- [x] **Fixed a hydration error (React #418) affecting every visitor with a saved basket** on every public page (the sticky basket bar rendered before the server HTML had it). Found while testing; present before today's changes
+- [x] `docs/daily-routine.md`: the one-page how-to for the daily routine (R9.14). The 30-minute walkthrough with the owner is still a session to schedule

@@ -2,6 +2,7 @@ import { asc, eq, gte } from "drizzle-orm";
 import { closure, deliveryZone, openingHours, settings } from "@/db/schema";
 import type { Db } from "@/lib/db/client";
 import { londonParts } from "@/lib/hours";
+import { cleanNotice } from "@/lib/notice-text";
 import { shopState } from "@/lib/shop-status";
 import { auditInsert, type Actor } from "./audit";
 import { normaliseTime, sortWindows, validateWindows, type HoursWindow } from "./hours-validate";
@@ -18,6 +19,7 @@ export type General = {
   cashMaxPence: number | null;
   cashDailyCapPerPhone: number;
   cashDailyCapPerIp: number;
+  noticeBar: string | null;
 };
 export type ZoneRow = { id: number; district: string; fee: number; minOrder: number; estimatedMinutes: number; active: boolean };
 export type ClosureView = { id: number; day: string; reason: string | null };
@@ -31,6 +33,7 @@ const DEFAULTS: General = {
   cashMaxPence: null,
   cashDailyCapPerPhone: 3,
   cashDailyCapPerIp: 5,
+  noticeBar: null,
 };
 
 export async function loadGeneral(db: Db): Promise<General> {
@@ -43,6 +46,7 @@ export async function loadGeneral(db: Db): Promise<General> {
     cashMaxPence: s.cashMaxPence,
     cashDailyCapPerPhone: s.cashDailyCapPerPhone,
     cashDailyCapPerIp: s.cashDailyCapPerIp,
+    noticeBar: s.noticeBar,
   };
 }
 
@@ -104,6 +108,13 @@ export async function setPause(db: Db, a: Actor, p: { paused: boolean; message?:
     upsertSettings(db, { paused: p.paused, pausedMessage: message }),
     audit(db, a, p.paused ? "settings.pause" : "settings.resume", "settings", { paused: before.paused, message: before.pausedMessage }, { paused: p.paused, message }),
   ]);
+  return { ok: true };
+}
+
+export async function saveNotice(db: Db, a: Actor, text: string | null): Promise<Result> {
+  const before = await loadGeneral(db);
+  const noticeBar = cleanNotice(text);
+  await db.batch([upsertSettings(db, { noticeBar }), audit(db, a, "settings.notice", "settings", { noticeBar: before.noticeBar }, { noticeBar })]);
   return { ok: true };
 }
 

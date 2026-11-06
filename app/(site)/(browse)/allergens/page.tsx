@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { Suspense } from "react";
+import { AllergenGrid } from "@/components/allergen-grid";
 import { LegalPage } from "@/components/legal";
 import { claimText, itemClaim, optionClaim, optionText } from "@/lib/allergens";
 import { readinessFromMenu } from "@/lib/allergen-readiness";
@@ -13,7 +15,7 @@ import { shop } from "@/lib/shop";
 // every item and option has its allergen data entered.
 export async function generateMetadata(): Promise<Metadata> {
   const live = LEGAL_APPROVED && (await menuReady());
-  return { title: "Allergen Information", alternates: { canonical: "/allergens" }, robots: live ? undefined : { index: false, follow: true } };
+  return pageMetadata({ title: "Allergen Information", description: "Allergen information for every Food Haus menu item and option, covering the 14 allergens, so you can order safely.", path: "/allergens", noindex: !live });
 }
 
 async function menuReady(): Promise<boolean> {
@@ -54,7 +56,9 @@ async function Body() {
             return (
               <section key={cat.slug} aria-labelledby={`cat-${cat.slug}`}>
                 <h2 id={`cat-${cat.slug}`} className="font-display text-3xl">{cat.name}</h2>
-                <ul className="mt-2 divide-y divide-line border-y border-line">
+                <div className="mt-2"><AllergenGrid category={cat.name} items={cat.items} options={opts.map((o) => o.allergens)} /></div>
+                <h3 className="mt-4 font-bold">In words</h3>
+                <ul className="mt-1 divide-y divide-line border-y border-line">
                   {cat.items.map((i) => {
                     const { text, ask } = claimText(itemClaim(i.allergens, opts.map((o) => o.allergens)), opts.length > 0);
                     return (

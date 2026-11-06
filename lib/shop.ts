@@ -23,6 +23,15 @@ export const shop = {
   currency: "GBP",
 } as const;
 
+// Company details for the footer (R11.11). Left empty on purpose: nothing is shown, and nothing is
+// invented, until the owner supplies them. LEGAL_APPROVED cannot be switched on while the first two are empty
+// (tests/consent.test.ts). VAT number only if the business is VAT registered (Q2).
+export const company: { number: string | null; registeredOffice: string | null; vatNumber: string | null } = {
+  number: null, // Companies House number, e.g. "12345678"
+  registeredOffice: null, // registered office address as on Companies House
+  vatNumber: null, // e.g. "GB123456789", or null if not VAT registered
+};
+
 // Opening hours are NOT yet supplied by the owner (section 14, "before
 // start"). Nothing is shown or published as fact until `confirmed` is true.
 export const hours = {

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { CLICK_EVENTS, clickEvent, track } from "@/lib/analytics-events";
 import { gaScriptSrc } from "@/lib/consent";
 import { openCookieSettings, removeAnalyticsCookies, setConsent, useConsent, usePanelOpen } from "@/lib/consent-store";
 
@@ -44,8 +45,9 @@ export function CookieBanner({ analyticsId }: { analyticsId: string | null }) {
   );
 }
 
-function loadGa(id: string) {
-  if (document.querySelector("script[data-fh-ga]")) return;
+/** Sets up the gtag queue. Called only once the visitor has accepted, so events that happen before Google's script arrives are not lost. */
+function ensureGtag(id: string) {
+  if (typeof window.gtag === "function") return;
   window[`ga-disable-${id}`] = false;
   window.dataLayer = window.dataLayer || [];
   window.gtag = function gtag() {
@@ -55,6 +57,11 @@ function loadGa(id: string) {
   };
   window.gtag("js", new Date());
   window.gtag("config", id);
+}
+
+function loadGa(id: string) {
+  if (document.querySelector("script[data-fh-ga]")) return;
+  ensureGtag(id);
   const s = document.createElement("script");
   s.async = true;
   s.src = gaScriptSrc(id);
@@ -73,6 +80,7 @@ export function Analytics({ id }: { id: string | null }) {
       return;
     }
     if (consent !== "granted") return;
+    ensureGtag(id); // from this moment events can be queued; the script itself loads when the page is idle
     let cancelled = false;
     const start = () => {
       const run = () => !cancelled && loadGa(id);
@@ -86,6 +94,16 @@ export function Analytics({ id }: { id: string | null }) {
       window.removeEventListener("load", start);
     };
   }, [consent, id]);
+  // click_call / click_directions: any link marked data-event="click_call" | "click_directions" (R11.8).
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const el = (e.target as Element | null)?.closest?.("[data-event]");
+      const name = el?.getAttribute("data-event");
+      if (name && (CLICK_EVENTS as readonly string[]).includes(name)) track(clickEvent(name as (typeof CLICK_EVENTS)[number]));
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
   return null;
 }
 

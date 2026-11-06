@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useBasket } from "@/components/basket";
+import { beginCheckoutEvent, promoAppliedEvent, track } from "@/lib/analytics-events";
 import { Turnstile } from "@/components/turnstile";
 import { MAX_NOTE } from "@/lib/basket-store";
 import { formatPenceExact } from "@/lib/money";
@@ -87,6 +88,20 @@ export function CheckoutForm() {
 
   const needsToken = !!turnstileKey && !token;
   const canSubmit = hydrated && ok !== null && !closed && !submitting && !needsToken;
+
+  // R11.8: begin_checkout once, when the first price comes back; promo_applied when an offer starts applying.
+  const began = useRef(false);
+  const lastPromo = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ok) return;
+    if (!began.current) {
+      began.current = true;
+      track(beginCheckoutEvent(ok.total));
+    }
+    const name = ok.appliedOffer?.name ?? null;
+    if (name && name !== lastPromo.current) track(promoAppliedEvent(name));
+    lastPromo.current = name;
+  }, [ok]);
 
   const onToken = useCallback((t: string | null) => setToken(t), []);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));

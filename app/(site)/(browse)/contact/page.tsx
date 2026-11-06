@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { getSchedule } from "@/lib/schedule-public";
 import { weekTimetable } from "@/lib/shop-status";
 import { fullAddress, mapsLink, shop } from "@/lib/shop";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Contact & Delivery Area",
   description: "Call, WhatsApp or visit Food Haus at 314-318 Selbourne Road, Luton LU4 8NU. Halal burgers, delivery and collection.",
-  alternates: { canonical: "/contact" },
-};
+  path: "/contact",
+});
 
 export default async function ContactPage() {
   const timetable = weekTimetable((await getSchedule()).hours);

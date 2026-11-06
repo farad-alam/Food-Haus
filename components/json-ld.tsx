@@ -1,3 +1,4 @@
+import type { HoursRow } from "@/lib/hours";
 import type { Menu } from "@/lib/menu";
 import { shop, SITE_URL } from "@/lib/shop";
 
@@ -10,7 +11,18 @@ function escapeJson(json: string): string {
   return json.replace(/</g, "\\u003c");
 }
 
-export function RestaurantJsonLd({ menu }: { menu: Menu }) {
+const DAY_URL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const hm = (t: string) => t.slice(0, 5); // "HH:MM:SS" -> "HH:MM"
+
+/** schema.org opening hours from the hours the owner entered in Settings. Empty (so left out) until they have entered some. */
+export function openingHoursSpec(hours: HoursRow[]) {
+  return hours
+    .filter((h) => h.weekday >= 0 && h.weekday <= 6)
+    .map((h) => ({ "@type": "OpeningHoursSpecification", dayOfWeek: `https://schema.org/${DAY_URL[h.weekday]}`, opens: hm(h.opensAt), closes: hm(h.closesAt) }));
+}
+
+export function RestaurantJsonLd({ menu, hours = [] }: { menu: Menu; hours?: HoursRow[] }) {
+  const spec = openingHoursSpec(hours);
   const data = {
     "@context": "https://schema.org",
     "@type": "Restaurant",
@@ -27,6 +39,7 @@ export function RestaurantJsonLd({ menu }: { menu: Menu }) {
       postalCode: shop.address.postcode,
       addressCountry: shop.address.country,
     },
+    ...(spec.length ? { openingHoursSpecification: spec } : {}),
     hasMenu: {
       "@type": "Menu",
       url: `${SITE_URL}/menu`,

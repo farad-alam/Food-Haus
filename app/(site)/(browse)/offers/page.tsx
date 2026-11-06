@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { Suspense } from "react";
 import { OfferCards } from "@/components/live-offers";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Burger Deals & Offers in Luton",
   description: "Current Food Haus offers and promo codes for delivery and collection in Luton.",
-  alternates: { canonical: "/offers" },
-};
+  path: "/offers",
+});
 
 // Live from the offers table (R9.8): only offers the owner chose to show, and only while they are running.
 export default function OffersPage() {

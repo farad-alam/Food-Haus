@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useMemo, useSyncExternalStore }
 import { formatPenceExact } from "@/lib/money";
 import { AddWithOptions } from "@/components/option-picker";
 import type { PickerGroup } from "@/lib/option-select";
+import { addToCartEvent, track } from "@/lib/analytics-events";
 import {
   addLine,
   EMPTY,
@@ -49,7 +50,10 @@ export function BasketProvider({ children }: { children: React.ReactNode }) {
   // the stored one — no hydration mismatch, no setState-in-effect.
   const stored = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  const add = useCallback((line: NewLine) => write(addLine(getSnapshot(), line)), []);
+  const add = useCallback((line: NewLine) => {
+    write(addLine(getSnapshot(), line));
+    track(addToCartEvent(line)); // R11.8; does nothing unless analytics was accepted
+  }, []);
   const setQty = useCallback((key: string, qty: number) => write(setLineQty(getSnapshot(), key, qty)), []);
   const setNote = useCallback((n: string) => write({ ...getSnapshot(), note: n.slice(0, MAX_NOTE) }), []);
   const clear = useCallback(() => write(EMPTY), []);
@@ -103,9 +107,16 @@ export function AddToBasket({
 
 /** R6.5: sticky bottom bar with item count and total. Space is reserved by
  *  the page's bottom padding so nothing jumps (R10.8). */
+const noopSubscribe = () => () => {};
 export function StickyBasketBar() {
   const { count, total } = useBasket();
   const path = usePathname();
+  // This bar sits in a Suspense boundary that hydrates AFTER the basket provider has already switched to the
+  // saved basket, so reading the basket alone would render the bar on the first client pass while the server
+  // HTML has none (React hydration error #418 for every visitor with a saved basket). `hydrated` is false for
+  // exactly the hydrating render, so the first pass matches the server, then the bar appears.
+  const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  if (!hydrated) return null;
   // The bar is for browsing; checkout and order pages have their own summary.
   if (count === 0 || path.startsWith("/checkout") || path.startsWith("/order")) return null;
   return (

@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { Suspense } from "react";
 import { AddToBasket } from "@/components/basket";
 import { CategoryOffers } from "@/components/live-offers";
 import { ReviewsBadge } from "@/components/reviews";
+import { TrackMenuView } from "@/components/track";
 import { getMenu } from "@/lib/menu";
 import { claimText, itemClaim } from "@/lib/allergens";
 import { photoSrcSet, photoUrl } from "@/lib/photos/keys";
 import { formatPence, formatPenceExact } from "@/lib/money";
 import { shop } from "@/lib/shop";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Order Halal Burgers Online in Luton",
-  description:
-    "The full Food Haus menu: halal smash burgers, wings, wraps, loaded fries and tenders. Order online for delivery or collection in Luton LU4.",
-  alternates: { canonical: "/menu" },
-};
+  description: "The full Food Haus menu: halal smash burgers, wings, wraps, loaded fries and tenders. Order online for delivery or collection in Luton LU4.",
+  path: "/menu",
+});
 
 // R10.9: menu data ships in the HTML — no spinner on first view.
 export default async function MenuPage() {
@@ -22,6 +23,7 @@ export default async function MenuPage() {
 
   return (
     <main>
+      <TrackMenuView />
       <div className="mx-auto max-w-5xl px-4 pt-6">
         <h1 className="font-display text-4xl sm:text-5xl">Order Halal Burgers Online in Luton</h1>
         <p className="mt-1 text-muted">Everything is halal. Prices include VAT.</p>

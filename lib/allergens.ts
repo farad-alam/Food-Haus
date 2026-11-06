@@ -104,3 +104,19 @@ export function optionText(claim: OptionClaim): { text: string; ask: boolean } {
   if (claim.kind === "none") return { text: "No major allergens declared.", ask: false };
   return { text: `Contains: ${claim.keys.map(allergenLabel).join(", ")}.`, ask: false };
 }
+
+// ---- the grid (R11.10): one cell per item and allergen -------------------------------------------
+
+/**
+ *  yes         the item itself contains it
+ *  via-option  the item does not, but an option a customer can add does
+ *  no          the item AND every option are entered and none contains it
+ *  unknown     anything else: nothing may be said (the item or an option is not entered)
+ */
+export type GridCell = "yes" | "via-option" | "no" | "unknown";
+export function gridCell(key: string, own: AllergenEntry, options: AllergenEntry[] = []): GridCell {
+  if (own === null) return "unknown";
+  if (own.includes(key)) return "yes";
+  if (options.some((o) => o === null)) return "unknown";
+  return options.some((o) => o!.includes(key)) ? "via-option" : "no";
+}

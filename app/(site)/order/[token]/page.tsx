@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { OrderLive } from "@/components/order-live";
+import { TrackPurchase } from "@/components/track";
 import { getDb } from "@/lib/db/client";
 import { formatPenceExact } from "@/lib/money";
 import { ACTIVE_STATUSES, orderWasPlaced, paymentLine, statusLine } from "@/lib/order-status";
@@ -39,6 +40,10 @@ async function OrderBody({ params }: { params: Promise<{ token: string }> }) {
   return (
     <>
       <OrderLive active={ACTIVE_STATUSES.includes(o.status)} placed={orderWasPlaced(o.status)} orderNumber={o.number} />
+      <TrackPurchase
+        placed={orderWasPlaced(o.status) && (o.paymentMethod === "cash" || o.paymentStatus === "paid")}
+        order={{ number: o.number, total: o.total, deliveryFee: o.deliveryFee, discount: o.discount, paymentMethod: o.paymentMethod, items: o.items.map((i) => ({ name: i.name, quantity: i.quantity, lineTotal: i.lineTotal })) }}
+      />
       <p className="text-muted">Order number</p>
       <h1 className="font-display text-5xl">{o.number}</h1>
 

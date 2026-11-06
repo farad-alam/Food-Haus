@@ -45,6 +45,7 @@ export function SettingsPanel() {
       <HoursSection initial={view.hours} onSaved={load} />
       <ClosuresSection closures={view.closures} onChanged={load} />
       <GeneralSection general={view.general} onSaved={load} />
+      <NoticeSection general={view.general} onSaved={load} />
       <ZonesSection zones={view.zones} onChanged={load} />
     </div>
   );
@@ -226,6 +227,31 @@ function GeneralSection({ general, onSaved }: { general: General; onSaved: () =>
       </div>
       <p className="mt-2 text-sm text-muted">Leave the cash limit empty for no limit. The daily limits stop people placing lots of cash orders they never collect.</p>
       <button type="button" className="btn btn-primary mt-3 w-full sm:w-auto" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
+      <Msg text={msg.text} good={msg.good} />
+    </Section>
+  );
+}
+
+// ---- site-wide notice bar ---------------------------------------------------------------
+
+function NoticeSection({ general, onSaved }: { general: General; onSaved: () => void }) {
+  const [text, setText] = useState(general.noticeBar ?? "");
+  const [msg, setMsg] = useState<{ text: string; good?: boolean }>({ text: "" });
+  const [busy, setBusy] = useState(false);
+  async function save(next: string) {
+    setBusy(true);
+    const o = await api("PUT", "/api/admin/settings/notice", { text: next.trim() || null });
+    setMsg(o.ok ? { text: next.trim() ? "Notice saved. It shows at the top of every page within a minute." : "Notice removed.", good: true } : { text: failMessage(o) });
+    if (o.ok) onSaved();
+    setBusy(false);
+  }
+  return (
+    <Section id="notice-h" title="Notice bar" hint="One short message shown in an orange bar at the top of every page, for example “Closed this Sunday” or “Free delivery this weekend”. Leave it empty for no bar.">
+      <label className="block font-bold">Message<input className={`${field} mt-1 block w-full font-normal`} value={text} maxLength={200} placeholder="No notice" onChange={(e) => setText(e.target.value)} /></label>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => save(text)}>{busy ? "Saving…" : "Save notice"}</button>
+        {general.noticeBar && <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => { setText(""); void save(""); }}>Remove notice</button>}
+      </div>
       <Msg text={msg.text} good={msg.good} />
     </Section>
   );
