@@ -23,6 +23,8 @@ export type AdminItem = {
   /** null = not entered. Normalised: a list without its provenance timestamp reads as null. */
   allergens: string[] | null;
   allergensEnteredAt: string | null;
+  photo: string | null;
+  photoAlt: string | null;
   dietaryTags: string[];
   soldOut: boolean;
   visible: boolean;
@@ -48,7 +50,7 @@ export async function loadMenuAdmin(db: Db): Promise<MenuAdminView> {
   ]);
   return {
     categories: cats.map((c) => ({ id: c.id, name: c.name, slug: c.slug, sortOrder: c.sortOrder, visible: c.visible })),
-    items: items.map((i) => ({ id: i.id, categoryId: i.categoryId, name: i.name, slug: i.slug, description: i.description, price: i.price, allergens: normaliseEntry(i.allergens, i.allergensEnteredAt), allergensEnteredAt: i.allergensEnteredAt?.toISOString() ?? null, dietaryTags: i.dietaryTags, soldOut: i.soldOut, visible: i.visible, sortOrder: i.sortOrder })),
+    items: items.map((i) => ({ id: i.id, categoryId: i.categoryId, name: i.name, slug: i.slug, description: i.description, price: i.price, allergens: normaliseEntry(i.allergens, i.allergensEnteredAt), allergensEnteredAt: i.allergensEnteredAt?.toISOString() ?? null, photo: i.photo, photoAlt: i.photoAlt, dietaryTags: i.dietaryTags, soldOut: i.soldOut, visible: i.visible, sortOrder: i.sortOrder })),
     // The public menu model supports ONE category-level group per category.
     optionGroups: groups
       .filter((g) => g.itemId == null && g.categoryId != null)
@@ -135,7 +137,7 @@ const samePermutation = (a: number[], b: number[]) => a.length === b.length && n
 
 // ---- items ----------------------------------------------------------------------------
 
-type ItemFields = Omit<AdminItem, "id" | "slug" | "sortOrder" | "allergensEnteredAt">;
+type ItemFields = Omit<AdminItem, "id" | "slug" | "sortOrder" | "allergensEnteredAt" | "photo" | "photoAlt">;
 
 export async function createItem(db: Db, a: Actor, f: ItemFields): Promise<Result<{ id: number; slug: string }>> {
   const [cat] = await db.select({ id: category.id }).from(category).where(eq(category.id, f.categoryId)).limit(1);
@@ -180,7 +182,7 @@ export async function patchItemFlags(db: Db, a: Actor, id: number, p: { soldOut?
   return { ok: true };
 }
 
-export async function deleteItem(db: Db, a: Actor, id: number): Promise<Result> {
+export async function deleteItem(db: Db, a: Actor, id: number, opts: { onPhotoRemoved?: (base: string) => Promise<void> } = {}): Promise<Result> {
   const [before] = await db.select().from(item).where(eq(item.id, id)).limit(1);
   if (!before) return { ok: false, code: "NOT_FOUND", message: "Item not found." };
   // Past orders keep their own copy of name and price, so deleting is safe for history.
@@ -191,6 +193,8 @@ export async function deleteItem(db: Db, a: Actor, id: number): Promise<Result> 
     db.delete(item).where(eq(item.id, id)),
     auditInsert(db, a, "menu.item.delete", `item:${id}`, editable(before), null),
   ]);
+  // The photo files are removed after the item is gone; a failure here only leaves an unused file behind.
+  if (before.photo && opts.onPhotoRemoved) await opts.onPhotoRemoved(before.photo).catch(() => undefined);
   return { ok: true };
 }
 

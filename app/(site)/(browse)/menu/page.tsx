@@ -5,6 +5,7 @@ import { CategoryOffers } from "@/components/live-offers";
 import { ReviewsBadge } from "@/components/reviews";
 import { getMenu } from "@/lib/menu";
 import { claimText, itemClaim } from "@/lib/allergens";
+import { photoSrcSet, photoUrl } from "@/lib/photos/keys";
 import { formatPence, formatPenceExact } from "@/lib/money";
 import { shop } from "@/lib/shop";
 
@@ -56,6 +57,11 @@ export default async function MenuPage() {
               {cat.items.map((item) => (
                 <li key={item.id} className="flex flex-col justify-between gap-3 rounded-2xl border border-line bg-surface p-4">
                   <div>
+                    {item.photo && (
+                      // Fixed 4:3 box with explicit size: nothing moves when the photo arrives (R10.8). Lazy, resized, WebP (R10.5).
+                      // eslint-disable-next-line @next/next/no-img-element -- already resized at upload; served from our own /media route
+                      <img src={photoUrl(item.photo.key, 400)} srcSet={photoSrcSet(item.photo.key)} sizes="(min-width: 640px) 320px, 90vw" alt={item.photo.alt} width={400} height={300} loading="lazy" decoding="async" className="mb-3 aspect-[4/3] w-full rounded-xl bg-surface-2 object-cover" />
+                    )}
                     <div className="flex items-baseline justify-between gap-3">
                       <h3 className="font-bold">{item.name}</h3>
                       <span className="whitespace-nowrap font-bold text-brand">{formatPence(item.price)}</span>

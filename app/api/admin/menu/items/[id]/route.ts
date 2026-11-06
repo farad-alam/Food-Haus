@@ -2,6 +2,8 @@ import { adminRoute } from "@/lib/admin/route";
 import { deleteItem, patchItemFlags, updateItem } from "@/lib/admin/menu";
 import { itemFlagsSchema, itemSchema } from "@/lib/admin/menu-schema";
 import { getDb } from "@/lib/db/client";
+import { getPhotoStore } from "@/lib/photos";
+import { deletePhotoFiles } from "@/lib/photos/pipeline";
 
 export const PUT = adminRoute({
   permission: "menu.edit",
@@ -25,5 +27,5 @@ export const DELETE = adminRoute({
   schema: null,
   idParam: "id",
   refreshMenu: true,
-  run: ({ user, id }) => deleteItem(getDb(), { userId: user.id, now: new Date() }, id),
+  run: ({ user, id }) => deleteItem(getDb(), { userId: user.id, now: new Date() }, id, { onPhotoRemoved: async (base) => deletePhotoFiles(await getPhotoStore(), base) }),
 });

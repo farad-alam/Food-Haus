@@ -1,5 +1,6 @@
 import seed from "@/data/menu-seed.json";
 import { normaliseEntry } from "./allergens";
+import { isBaseKey } from "./photos/keys";
 
 // Pure menu model: types and the builder. No Next.js imports, so the pricing
 // engine and its tests can use it directly. The cached accessor lives in
@@ -27,6 +28,8 @@ export type MenuItem = {
   dietaryTags: string[];
   soldOut: boolean;
   visible: boolean;
+  /** Base key of the photo (see lib/photos/keys.ts) and its alt text (R11.15: falls back to the item name). null = no photo. */
+  photo: { key: string; alt: string } | null;
 };
 export type MenuCategory = {
   name: string;
@@ -70,6 +73,8 @@ export type MenuRows = {
     /** When a person explicitly entered `allergens`. Missing = not entered, whatever `allergens` holds. */
     allergensEnteredAt?: Date | string | null;
     dietaryTags: string[];
+    photo?: string | null;
+    photoAlt?: string | null;
     soldOut: boolean;
     visible: boolean;
     sortOrder: number;
@@ -109,6 +114,7 @@ export function rowsToMenu(rows: MenuRows): Menu {
             dietaryTags: i.dietaryTags,
             soldOut: i.soldOut,
             visible: i.visible,
+            photo: isBaseKey(i.photo) ? { key: i.photo, alt: i.photoAlt?.trim() || i.name } : null, // a malformed stored key shows no photo
           };
         });
       return { name: c.name, slug: catSlug, sortOrder: c.sortOrder, items };

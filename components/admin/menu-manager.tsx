@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ALLERGENS, DIETARY_TAGS } from "@/lib/menu-constants";
+import { photoSrcSet, photoUrl } from "@/lib/photos/keys";
+import { MAX_ALT_LENGTH, MAX_UPLOAD_BYTES, MIN_SOURCE } from "@/lib/photos/types";
 import { formatPenceExact, parsePounds, penceToInput } from "@/lib/money";
 import type { AdminCategory, AdminItem, AdminOptionGroup, MenuAdminView } from "@/lib/admin/menu";
 import { api, failMessage, field, Msg } from "./ui";
@@ -189,13 +191,19 @@ function ItemRow({ it, items, categories, reload }: { it: AdminItem; items: Admi
   return (
     <li className="py-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-start gap-3">
+          {it.photo && (
+            // eslint-disable-next-line @next/next/no-img-element -- served from our own /media route, already resized
+            <img src={photoUrl(it.photo, 400)} alt="" width={64} height={48} className="h-12 w-16 shrink-0 rounded object-cover" />
+          )}
+          <div className="min-w-0">
           <p className="font-bold">{it.name} <span className="font-normal text-muted">· {formatPenceExact(it.price)}</span></p>
           <p className="mt-1 flex flex-wrap gap-1 text-xs">
             {!it.visible && <span className="rounded bg-yellow-400 px-2 py-0.5 font-bold text-black">HIDDEN</span>}
             {it.soldOut && <span className="rounded bg-red-500 px-2 py-0.5 font-bold text-white">SOLD OUT</span>}
             {it.allergens === null && <span className="rounded border border-yellow-400 px-2 py-0.5 text-yellow-400">Allergens missing</span>}
           </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-1">
           <button type="button" className={btn} aria-label={`Move ${it.name} up`} disabled={idx === 0} onClick={() => move(-1)}>▲</button>
@@ -207,7 +215,7 @@ function ItemRow({ it, items, categories, reload }: { it: AdminItem; items: Admi
       </div>
       <Msg text={msg} />
       {editing && (
-        <div className="mt-3"><ItemEditor categories={categories} item={it} onDone={() => { setEditing(false); reload(); }} onCancel={() => setEditing(false)} /></div>
+        <div className="mt-3"><ItemEditor categories={categories} item={it} onPhotoChanged={reload} onDone={() => { setEditing(false); reload(); }} onCancel={() => setEditing(false)} /></div>
       )}
     </li>
   );
@@ -215,7 +223,7 @@ function ItemRow({ it, items, categories, reload }: { it: AdminItem; items: Admi
 
 type Draft = { name: string; description: string; price: string; categoryId: number; confirmed: boolean; allergens: string[]; tags: string[]; soldOut: boolean; visible: boolean };
 
-function ItemEditor({ categories, item, initial, onDone, onCancel }: { categories: AdminCategory[]; item?: AdminItem; initial?: { categoryId: number }; onDone: () => void; onCancel: () => void }) {
+function ItemEditor({ categories, item, initial, onDone, onCancel, onPhotoChanged }: { categories: AdminCategory[]; item?: AdminItem; initial?: { categoryId: number }; onDone: () => void; onCancel: () => void; onPhotoChanged?: () => void }) {
   const [d, setD] = useState<Draft>({
     name: item?.name ?? "",
     description: item?.description ?? "",
@@ -275,6 +283,8 @@ function ItemEditor({ categories, item, initial, onDone, onCancel }: { categorie
           </select>
         </label>
       </div>
+
+      {item ? <PhotoFields item={item} onChanged={() => onPhotoChanged?.()} /> : <p className="text-sm text-muted">Save the item first, then you can add a photo.</p>}
 
       <AllergenFields id={id} confirmed={d.confirmed} selected={d.allergens} subject="this item" onChange={(p) => set(p)} />
 
@@ -406,6 +416,80 @@ function AllergenFields({ id, confirmed, selected, subject, onChange }: { id: st
           {selected.length === 0 && <p className="mt-1 text-sm text-yellow-400">Nothing ticked means “contains none of the 14”, and the website will say so. Only confirm that if you have checked every ingredient{subject === "this option" ? " in this option" : ""}.</p>}
         </>
       )}
+    </fieldset>
+  );
+}
+
+/** Upload, describe or remove one item's photo. The server resizes and re-encodes it; nothing here is trusted. */
+function PhotoFields({ item, onChanged }: { item: AdminItem; onChanged: () => void }) {
+  const [alt, setAlt] = useState(item.photoAlt ?? "");
+  const [msg, setMsg] = useState<{ text: string; good?: boolean }>({ text: "" });
+  const [busy, setBusy] = useState(false);
+  const url = `/api/admin/menu/items/${item.id}/photo`;
+
+  async function upload(file: File) {
+    if (file.size > MAX_UPLOAD_BYTES) return setMsg({ text: `That file is too big. Photos can be up to ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.` });
+    setBusy(true);
+    setMsg({ text: "Uploading…", good: true });
+    const form = new FormData();
+    form.append("file", file);
+    form.append("alt", alt);
+    try {
+      const res = await fetch(url, { method: "POST", body: form });
+      const out = await res.json().catch(() => ({}));
+      if (res.ok && out.ok !== false) {
+        setMsg({ text: "Photo saved.", good: true });
+        onChanged();
+      } else setMsg({ text: res.status === 401 ? "You have been signed out. Sign in again." : out.message || "That did not work. Please try again." });
+    } catch {
+      setMsg({ text: "No connection. The photo was not saved." });
+    }
+    setBusy(false);
+  }
+  async function saveAlt() {
+    setBusy(true);
+    const o = await api("PUT", url, { alt: alt.trim() || null });
+    setBusy(false);
+    if (o.ok) {
+      setMsg({ text: "Description saved.", good: true });
+      onChanged();
+    } else setMsg({ text: failMessage(o) });
+  }
+  async function remove() {
+    if (!window.confirm("Remove this photo?")) return;
+    setBusy(true);
+    const o = await api("DELETE", url);
+    setBusy(false);
+    if (o.ok) {
+      setAlt("");
+      setMsg({ text: "Photo removed.", good: true });
+      onChanged();
+    } else setMsg({ text: failMessage(o) });
+  }
+  return (
+    <fieldset>
+      <legend className="font-bold">Photo</legend>
+      <div className="mt-1 space-y-2">
+        {item.photo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- served from our own /media route, already resized
+          <img src={photoUrl(item.photo, 800)} srcSet={photoSrcSet(item.photo)} sizes="320px" alt={item.photoAlt || item.name} width={320} height={240} className="aspect-[4/3] w-80 max-w-full rounded-lg object-cover" />
+        ) : (
+          <p className="text-sm text-muted">No photo yet. The menu shows this item without one.</p>
+        )}
+        <label className="block text-sm text-muted">
+          {item.photo ? "Replace the photo" : "Add a photo"} (JPEG, PNG or WebP, at least {MIN_SOURCE.width} x {MIN_SOURCE.height} pixels)
+          <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} className="mt-1 block min-h-[48px] w-full" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
+        </label>
+        <label className="block text-sm text-muted">
+          Describe the photo for people who cannot see it (leave blank to use the item name)
+          <input className={`${field} mt-1 block w-full`} value={alt} maxLength={MAX_ALT_LENGTH} placeholder="Double smash burger with melted cheese on a toasted bun" onChange={(e) => setAlt(e.target.value)} />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {item.photo && <button type="button" className={btn} disabled={busy} onClick={saveAlt}>Save description</button>}
+          {item.photo && <button type="button" className={btn} disabled={busy} onClick={remove}>Remove photo</button>}
+        </div>
+        <Msg text={msg.text} good={msg.good} />
+      </div>
     </fieldset>
   );
 }

@@ -46,3 +46,6 @@ next-env.d.ts
 # secrets
 .env*
 !.env.example
+
+# local photo uploads (development)
+/.data/

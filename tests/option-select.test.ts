@@ -59,7 +59,7 @@ describe("parity with the server's pricing engine", () => {
     it(`every selection agrees: ${JSON.stringify(over)}`, () => {
       const group = g(over);
       const menu: Menu = {
-        categories: [{ name: "Cat", slug: "cat", sortOrder: 1, items: [{ id: "cat-item", slug: "item", category: "Cat", name: "Item", description: "", price: 800, allergens: [], dietaryTags: [], soldOut: false, visible: true }] }],
+        categories: [{ name: "Cat", slug: "cat", sortOrder: 1, items: [{ id: "cat-item", slug: "item", category: "Cat", name: "Item", description: "", price: 800, allergens: [], dietaryTags: [], soldOut: false, visible: true, photo: null }] }],
         optionGroups: { Cat: group as MenuOptionGroup },
         popular: [],
       };

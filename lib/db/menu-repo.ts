@@ -26,6 +26,8 @@ export async function loadMenuRows(db: Db): Promise<MenuRows> {
       price: i.price,
       allergens: i.allergens,
       allergensEnteredAt: i.allergensEnteredAt,
+      photo: i.photo,
+      photoAlt: i.photoAlt,
       dietaryTags: i.dietaryTags,
       soldOut: i.soldOut,
       visible: i.visible,

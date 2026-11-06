@@ -22,6 +22,14 @@
   "kv_namespaces": [
     { "binding": "NEXT_INC_CACHE_KV", "id": "local-placeholder-replace-before-deploy" }
   ],
+  // Menu photos (R9.7). Create the bucket first:  wrangler r2 bucket create food-haus-photos
+  // The binding is the credential: no access keys are stored anywhere. See docs/security-checklist.md,
+  // "Photo upload", for what to verify after the first deploy (not testable without a real bucket).
+  "r2_buckets": [
+    { "binding": "PHOTOS", "bucket_name": "food-haus-photos" }
+  ],
+  // Resizes uploads to 4:3 WebP (R10.5) inside the Worker. Needs the Cloudflare Images binding enabled on the account.
+  "images": { "binding": "IMAGES" },
   "d1_databases": [
     { "binding": "NEXT_TAG_CACHE_D1", "database_name": "food-haus-tag-cache", "database_id": "local-placeholder-replace-before-deploy" }
   ],
@@ -30,7 +38,7 @@
       "name": "food-haus-production",
       "vars": { "APP_ENV": "production" }
     }
-  }
+  },
   // Cron Triggers (UTC). Every 5 minutes: cancel unpaid card orders older than 45 min and prune
   // old counters, sessions and tokens (lib/maintenance.ts). Needs the CRON_SECRET secret:
   //   openssl rand -base64 32 | wrangler secret put CRON_SECRET
