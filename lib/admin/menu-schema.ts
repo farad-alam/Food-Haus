@@ -21,8 +21,8 @@ export const itemFields = {
   description: z.string().trim().max(600, "The description must be 600 characters or fewer."),
   price: z.number().int("Price must be a whole number of pence.").min(PRICE_MIN, "Price must be at least 1p.").max(PRICE_MAX, "Price cannot be over £500."),
   categoryId: z.number().int().positive(),
-  // null = allergen information NOT supplied yet (blocks launch, R11.10). An
-  // empty array means "confirmed: contains none of the 14".
+  // null = allergen information NOT entered yet (blocks launch, R11.10). An empty array
+  // means the owner explicitly confirmed "contains none of the 14": it is never a default.
   allergens: unique(z.enum(ALLERGEN_KEYS)).nullable(),
   dietaryTags: unique(z.enum(DIETARY_KEYS)),
   soldOut: z.boolean(),
@@ -49,6 +49,8 @@ export const optionGroupSchema = z
         z.strictObject({
           name: name("an option name", 60),
           priceChange: z.number().int("Extra price must be a whole number of pence.").min(0, "Extra price cannot be negative.").max(5_000, "Extra price cannot be over £50."),
+          // Same rule as items: null = not entered yet; [] = explicitly confirmed none. Required, so it can never be left out by accident.
+          allergens: unique(z.enum(ALLERGEN_KEYS)).nullable(),
         }),
       )
       .min(1, "Add at least one option.")

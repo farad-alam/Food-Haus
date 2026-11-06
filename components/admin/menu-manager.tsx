@@ -276,23 +276,7 @@ function ItemEditor({ categories, item, initial, onDone, onCancel }: { categorie
         </label>
       </div>
 
-      <fieldset>
-        <legend className="font-bold">Allergens (the 14 the law requires)</legend>
-        <div className="mt-1 space-y-1">
-          <label className="flex min-h-[44px] items-center gap-2"><input type="radio" name={`${id}-conf`} className="h-5 w-5" checked={!d.confirmed} onChange={() => set({ confirmed: false })} /> Not supplied yet (the site shows “allergen information coming soon”)</label>
-          <label className="flex min-h-[44px] items-center gap-2"><input type="radio" name={`${id}-conf`} className="h-5 w-5" checked={d.confirmed} onChange={() => set({ confirmed: true })} /> Confirmed: tick everything this item contains</label>
-        </div>
-        {d.confirmed && (
-          <>
-            <div className="mt-2 grid gap-1 sm:grid-cols-2">
-              {ALLERGENS.map((a) => (
-                <label key={a.key} className="flex min-h-[44px] items-center gap-2"><input type="checkbox" className="h-5 w-5" checked={d.allergens.includes(a.key)} onChange={() => set({ allergens: toggle(d.allergens, a.key) })} /> {a.label}</label>
-              ))}
-            </div>
-            {d.allergens.length === 0 && <p className="mt-1 text-sm text-yellow-400">Nothing ticked means “contains none of the 14”. Only confirm that if you have checked every ingredient.</p>}
-          </>
-        )}
-      </fieldset>
+      <AllergenFields id={id} confirmed={d.confirmed} selected={d.allergens} subject="this item" onChange={(p) => set(p)} />
 
       <fieldset>
         <legend className="font-bold">Tags</legend>
@@ -320,11 +304,13 @@ function ItemEditor({ categories, item, initial, onDone, onCancel }: { categorie
 
 // ---- options ("Make it a Meal") ---------------------------------------------------------------------
 
-type OptDraft = { name: string; required: boolean; minPicks: string; maxPicks: string; options: { name: string; price: string }[] };
+type OptRow = { name: string; price: string; confirmed: boolean; allergens: string[] };
+type OptDraft = { name: string; required: boolean; minPicks: string; maxPicks: string; options: OptRow[] };
+const newOpt = (): OptRow => ({ name: "", price: "0.00", confirmed: false, allergens: [] }); // allergens are NEVER pre-confirmed
 const toDraft = (g: AdminOptionGroup | null): OptDraft =>
   g
-    ? { name: g.name, required: g.required, minPicks: String(g.minPicks), maxPicks: String(g.maxPicks), options: g.options.map((o) => ({ name: o.name, price: penceToInput(o.priceChange) })) }
-    : { name: "", required: false, minPicks: "0", maxPicks: "1", options: [{ name: "", price: "0.00" }] };
+    ? { name: g.name, required: g.required, minPicks: String(g.minPicks), maxPicks: String(g.maxPicks), options: g.options.map((o) => ({ name: o.name, price: penceToInput(o.priceChange), confirmed: o.allergens !== null, allergens: o.allergens ?? [] })) }
+    : { name: "", required: false, minPicks: "0", maxPicks: "1", options: [newOpt()] };
 
 function OptionsEditor({ catId, catName, group, onChanged }: { catId: number; catName: string; group: AdminOptionGroup | null; onChanged: () => void }) {
   const [open, setOpen] = useState(false);
@@ -333,7 +319,7 @@ function OptionsEditor({ catId, catName, group, onChanged }: { catId: number; ca
   const [busy, setBusy] = useState(false);
 
   async function save() {
-    const options = d.options.map((o) => ({ name: o.name, priceChange: parsePounds(o.price) }));
+    const options = d.options.map((o) => ({ name: o.name, priceChange: parsePounds(o.price), allergens: o.confirmed ? ALLERGENS.map((a) => a.key).filter((k) => o.allergens.includes(k)) : null }));
     if (options.some((o) => o.priceChange === null)) return setMsg({ text: "Enter each extra price in pounds, like 3.49 (or 0 for no charge)." });
     const min = Number(d.minPicks);
     const max = Number(d.maxPicks);
@@ -355,7 +341,7 @@ function OptionsEditor({ catId, catName, group, onChanged }: { catId: number; ca
       onChanged();
     } else setMsg({ text: failMessage(o) });
   }
-  const setOpt = (i: number, p: Partial<{ name: string; price: string }>) => setD((x) => ({ ...x, options: x.options.map((o, n) => (n === i ? { ...o, ...p } : o)) }));
+  const setOpt = (i: number, p: Partial<OptRow>) => setD((x) => ({ ...x, options: x.options.map((o, n) => (n === i ? { ...o, ...p } : o)) }));
 
   return (
     <div className="mt-4 border-t border-line pt-3">
@@ -373,14 +359,22 @@ function OptionsEditor({ catId, catName, group, onChanged }: { catId: number; ca
           </div>
           <ul className="space-y-2">
             {d.options.map((o, i) => (
-              <li key={i} className="flex flex-wrap items-end gap-2">
-                <label className="grow text-sm text-muted">Option<input className={`${field} mt-1 block w-full`} value={o.name} maxLength={60} placeholder="Regular meal (fries + drink)" onChange={(e) => setOpt(i, { name: e.target.value })} /></label>
-                <label className="w-28 text-sm text-muted">Extra (£)<input inputMode="decimal" className={`${field} mt-1 block w-full`} value={o.price} onChange={(e) => setOpt(i, { price: e.target.value })} /></label>
-                <button type="button" className={btn} aria-label={`Remove option ${i + 1}`} onClick={() => setD((x) => ({ ...x, options: x.options.filter((_, n) => n !== i) }))}>Remove</button>
+              <li key={i} className="space-y-2 rounded-lg border border-line p-2">
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="grow text-sm text-muted">Option<input className={`${field} mt-1 block w-full`} value={o.name} maxLength={60} placeholder="Regular meal (fries + drink)" onChange={(e) => setOpt(i, { name: e.target.value })} /></label>
+                  <label className="w-28 text-sm text-muted">Extra (£)<input inputMode="decimal" className={`${field} mt-1 block w-full`} value={o.price} onChange={(e) => setOpt(i, { price: e.target.value })} /></label>
+                  <button type="button" className={btn} aria-label={`Remove option ${i + 1}`} onClick={() => setD((x) => ({ ...x, options: x.options.filter((_, n) => n !== i) }))}>Remove</button>
+                </div>
+                <details open>
+                  <summary className={`cursor-pointer text-sm font-bold ${o.confirmed ? "" : "text-yellow-400"}`}>
+                    Allergens: {o.confirmed ? (o.allergens.length ? ALLERGENS.filter((a) => o.allergens.includes(a.key)).map((a) => a.label).join(", ") : "none of the 14 (confirmed)") : "NOT ENTERED YET"}
+                  </summary>
+                  <AllergenFields id={`opt${i}`} confirmed={o.confirmed} selected={o.allergens} subject="this option" onChange={(p) => setOpt(i, p)} />
+                </details>
               </li>
             ))}
           </ul>
-          <button type="button" className={btn} onClick={() => setD((x) => ({ ...x, options: [...x.options, { name: "", price: "0.00" }] }))}>Add an option</button>
+          <button type="button" className={btn} onClick={() => setD((x) => ({ ...x, options: [...x.options, newOpt()] }))}>Add an option</button>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn btn-primary !min-h-[48px]" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save options"}</button>
             {group && <button type="button" className={btn} onClick={remove}>Remove options</button>}
@@ -389,5 +383,29 @@ function OptionsEditor({ catId, catName, group, onChanged }: { catId: number; ca
         </div>
       )}
     </div>
+  );
+}
+
+/** The explicit "not entered / confirmed" choice plus the 14 tick boxes, for an item or an option. Nothing is ever pre-ticked or pre-confirmed. */
+const toggleKey = (list: string[], k: string) => (list.includes(k) ? list.filter((x) => x !== k) : [...list, k]);
+function AllergenFields({ id, confirmed, selected, subject, onChange }: { id: string; confirmed: boolean; selected: string[]; subject: string; onChange: (p: { confirmed?: boolean; allergens?: string[] }) => void }) {
+  return (
+    <fieldset className="mt-1">
+      <legend className="font-bold">Allergens (the 14 the law requires)</legend>
+      <div className="mt-1 space-y-1">
+        <label className="flex min-h-[44px] items-center gap-2"><input type="radio" name={`${id}-conf`} className="h-5 w-5" checked={!confirmed} onChange={() => onChange({ confirmed: false })} /> Not entered yet (the site says “please ask”, and shows no allergen claim)</label>
+        <label className="flex min-h-[44px] items-center gap-2"><input type="radio" name={`${id}-conf`} className="h-5 w-5" checked={confirmed} onChange={() => onChange({ confirmed: true })} /> I have checked: tick everything {subject} contains</label>
+      </div>
+      {confirmed && (
+        <>
+          <div className="mt-2 grid gap-1 sm:grid-cols-2">
+            {ALLERGENS.map((a) => (
+              <label key={a.key} className="flex min-h-[44px] items-center gap-2"><input type="checkbox" className="h-5 w-5" checked={selected.includes(a.key)} onChange={() => onChange({ allergens: toggleKey(selected, a.key) })} /> {a.label}</label>
+            ))}
+          </div>
+          {selected.length === 0 && <p className="mt-1 text-sm text-yellow-400">Nothing ticked means “contains none of the 14”, and the website will say so. Only confirm that if you have checked every ingredient{subject === "this option" ? " in this option" : ""}.</p>}
+        </>
+      )}
+    </fieldset>
   );
 }

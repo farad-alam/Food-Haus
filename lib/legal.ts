@@ -24,7 +24,7 @@ export type Block =
   | { t: "table"; head: string[]; rows: Cell[][] }
   | { t: "ph"; ph: string; hint?: string };
 export type Section = { id: string; title: string; blocks: Block[] };
-export type LegalDoc = { slug: "privacy" | "cookies" | "terms"; title: string; intro: Block[]; sections: Section[] };
+export type LegalDoc = { slug: "privacy" | "cookies" | "terms" | "allergens"; title: string; intro: Block[]; sections: Section[] };
 
 export const isPh = (c: unknown): c is Ph => typeof c === "object" && c !== null && "ph" in c;
 const ph = (need: string, hint?: string): Ph => ({ ph: need, hint });
@@ -43,7 +43,7 @@ export function placeholdersIn(doc: LegalDoc): Ph[] {
   return out;
 }
 
-export const outstandingPlaceholders = () => [privacyPolicy, cookiePolicy, termsPolicy].flatMap((d) => placeholdersIn(d).map((p) => ({ doc: d.slug, ...p })));
+export const outstandingPlaceholders = () => [privacyPolicy, cookiePolicy, termsPolicy, allergenNotice].flatMap((d) => placeholdersIn(d).map((p) => ({ doc: d.slug, ...p })));
 
 // ---------------------------------------------------------------------------------------------
 
@@ -316,6 +316,44 @@ export const termsPolicy: LegalDoc = {
         { t: "ph", ph: "Limits on liability, in the wording the owner's adviser approves", hint: "Must not exclude anything the law does not allow to be excluded." },
         { t: "ph", ph: "Governing law and which courts apply" },
         { t: "ph", ph: "How these terms and our Privacy Policy and Cookie Policy relate, and how changes to the terms are announced" },
+      ],
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------------------------
+// Allergen page (R5.10, R11.10). The per-item information is NOT here: it comes from the menu
+// (lib/allergens.ts) and only ever shows what the owner entered. This is the wording around it.
+
+export const allergenNotice: LegalDoc = {
+  slug: "allergens",
+  title: "Allergen Information",
+  intro: [
+    { t: "p", text: "If you have a food allergy or intolerance, please read this page before you order and tell us when you order. If you are not sure about anything, call us before you eat." },
+    { t: "p", text: "This page shows the allergen information the shop has entered for each item. Where an item says it is not confirmed yet, we have not told you anything about it, so do not assume it is free of any allergen: ask us." },
+    { t: "ph", ph: "Date the allergen information was last checked by the owner" },
+  ],
+  sections: [
+    {
+      id: "how",
+      title: "How to read the information",
+      blocks: [
+        { t: "ul", items: [
+          "Contains: the allergens the shop has confirmed are in that item.",
+          "No major allergens declared: the shop has checked and confirmed that none of the 14 is in it.",
+          "Not confirmed yet: no information has been entered. This is not the same as “none”. Please ask.",
+          "Options such as “Make it a Meal” have their own information. They can add allergens to the item you choose.",
+        ] },
+        { t: "p", text: "The 14 allergens that UK law requires us to tell you about are: celery, cereals containing gluten, crustaceans, eggs, fish, lupin, milk, molluscs, mustard, tree nuts, peanuts, sesame, soya and sulphur dioxide (sulphites)." },
+      ],
+    },
+    {
+      id: "kitchen",
+      title: "Our kitchen",
+      blocks: [
+        { t: "ph", ph: "Cross-contamination statement: whether and how the kitchen can avoid traces of allergens, shared fryers and equipment, and what customers with severe allergies should do", hint: "Legal and food-safety decision. This must be true of the real kitchen." },
+        { t: "ph", ph: "Wording about recipe or supplier changes and how allergen information is kept up to date" },
+        { t: "ph", ph: "Phone number and times to call about allergens", hint: "Contact details are confirmed by the owner, not assumed." },
       ],
     },
   ],

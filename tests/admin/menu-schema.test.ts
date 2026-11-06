@@ -39,7 +39,15 @@ describe("item schema", () => {
 });
 
 describe("option group schema", () => {
-  const group = { name: "Make it a Meal", required: false, minPicks: 0, maxPicks: 1, options: [{ name: "Meal", priceChange: 349 }] };
+  const group = { name: "Make it a Meal", required: false, minPicks: 0, maxPicks: 1, options: [{ name: "Meal", priceChange: 349, allergens: null }] };
+  it("an option's allergen entry is required (it cannot be left out by accident) and validated like an item's", () => {
+    const opt = (o: Record<string, unknown>) => optionGroupSchema.safeParse({ ...group, options: [{ name: "Meal", priceChange: 349, ...o }] }).success;
+    expect(optionGroupSchema.safeParse({ ...group, options: [{ name: "Meal", priceChange: 349 }] }).success).toBe(false); // missing entirely
+    expect(opt({ allergens: null })).toBe(true); // explicitly "not entered"
+    expect(opt({ allergens: [] })).toBe(true); // explicitly "none"
+    expect(opt({ allergens: ["milk", "gluten"] })).toBe(true);
+    for (const bad of [["dairy"], ["milk", "milk"], "milk", undefined]) expect(opt({ allergens: bad })).toBe(false);
+  });
   it("accepts a normal group", () => expect(optionGroupSchema.safeParse(group).success).toBe(true));
   it("rejects impossible pick counts", () => {
     expect(optionGroupSchema.safeParse({ ...group, maxPicks: 2 }).success).toBe(false); // more picks than options
@@ -47,14 +55,14 @@ describe("option group schema", () => {
     expect(optionGroupSchema.safeParse({ ...group, maxPicks: 0 }).success).toBe(false);
   });
   it("rejects negative or fractional extras and empty option lists", () => {
-    expect(optionGroupSchema.safeParse({ ...group, options: [{ name: "Meal", priceChange: -1 }] }).success).toBe(false);
-    expect(optionGroupSchema.safeParse({ ...group, options: [{ name: "Meal", priceChange: 3.5 }] }).success).toBe(false);
+    expect(optionGroupSchema.safeParse({ ...group, options: [{ name: "Meal", priceChange: -1, allergens: null }] }).success).toBe(false);
+    expect(optionGroupSchema.safeParse({ ...group, options: [{ name: "Meal", priceChange: 3.5, allergens: null }] }).success).toBe(false);
     expect(optionGroupSchema.safeParse({ ...group, options: [] }).success).toBe(false);
   });
   it("rejects option names that collapse to the same id (first 24 letters/digits)", () => {
     const long = "Extra large cheese and bacon topping";
-    expect(optionGroupSchema.safeParse({ ...group, maxPicks: 1, options: [{ name: `${long} one`, priceChange: 100 }, { name: `${long} two`, priceChange: 100 }] }).success).toBe(false);
-    expect(optionGroupSchema.safeParse({ ...group, options: [{ name: "Cheese", priceChange: 100 }, { name: "cheese!", priceChange: 100 }] }).success).toBe(false);
-    expect(optionGroupSchema.safeParse({ ...group, options: [{ name: "Cheese", priceChange: 100 }, { name: "Bacon", priceChange: 150 }] }).success).toBe(true);
+    expect(optionGroupSchema.safeParse({ ...group, maxPicks: 1, options: [{ name: `${long} one`, priceChange: 100, allergens: null }, { name: `${long} two`, priceChange: 100, allergens: null }] }).success).toBe(false);
+    expect(optionGroupSchema.safeParse({ ...group, options: [{ name: "Cheese", priceChange: 100, allergens: null }, { name: "cheese!", priceChange: 100, allergens: null }] }).success).toBe(false);
+    expect(optionGroupSchema.safeParse({ ...group, options: [{ name: "Cheese", priceChange: 100, allergens: null }, { name: "Bacon", priceChange: 150, allergens: null }] }).success).toBe(true);
   });
 });

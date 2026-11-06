@@ -16,7 +16,8 @@
     "test": "vitest run",
     "db:seed": "tsx scripts/seed.mts",
     "admin:create": "tsx scripts/create-admin.mts",
-    "admin:setup-link": "tsx scripts/admin-setup-link.mts"
+    "admin:setup-link": "tsx scripts/admin-setup-link.mts",
+    "allergens:check": "tsx scripts/allergens-check.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

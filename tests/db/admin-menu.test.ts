@@ -100,7 +100,7 @@ describe.skipIf(!enabled)("admin menu manager (real database)", () => {
       ["PUT item", (w, o) => putItem(req("PUT", "/api/admin/menu/items/1", w, itemBody(1), o), ctx(1))],
       ["PATCH item", (w, o) => patchItem(req("PATCH", "/api/admin/menu/items/1", w, { soldOut: true }, o), ctx(1))],
       ["DELETE item", (w, o) => deleteItem(req("DELETE", "/api/admin/menu/items/1", w, undefined, o), ctx(1))],
-      ["PUT options", (w, o) => putOptions(req("PUT", "/api/admin/menu/options/1", w, { name: "x", required: false, minPicks: 0, maxPicks: 1, options: [{ name: "a", priceChange: 0 }] }, o), ctx(1))],
+      ["PUT options", (w, o) => putOptions(req("PUT", "/api/admin/menu/options/1", w, { name: "x", required: false, minPicks: 0, maxPicks: 1, options: [{ name: "a", priceChange: 0, allergens: null }] }, o), ctx(1))],
       ["DELETE options", (w, o) => deleteOptions(req("DELETE", "/api/admin/menu/options/1", w, undefined, o), ctx(1))],
     ];
     for (const [name, call] of calls) {
@@ -288,7 +288,7 @@ describe.skipIf(!enabled)("admin menu manager (real database)", () => {
   });
 
   describe("option groups (Make it a Meal)", () => {
-    const group = { name: "Make it a Meal", required: false, minPicks: 0, maxPicks: 1, options: [{ name: "Regular meal", priceChange: 349 }, { name: "Large meal", priceChange: 449 }] };
+    const group = { name: "Make it a Meal", required: false, minPicks: 0, maxPicks: 1, options: [{ name: "Regular meal", priceChange: 349, allergens: null }, { name: "Large meal", priceChange: 449, allergens: null }] };
     it("saves a group that the public menu and the pricing engine use; saving again replaces it", async () => {
       const catId = await newCat(`Meals ${tag}`);
       const it = await newItem(catId, { name: `Combo ${tag}`, price: 800 });
@@ -301,7 +301,7 @@ describe.skipIf(!enabled)("admin menu manager (real database)", () => {
       const r = priceOrder({ menu, zones: [], offers: [], items: [{ itemId: id, quantity: 1, optionIds: [g.options[1].id] }], orderType: "collection", paymentMethod: "cash", now: new Date() });
       expect(r.ok && r.total).toBe(800 + 449);
 
-      const replaced = { ...group, name: "Add a drink", options: [{ name: "Cola", priceChange: 150 }] };
+      const replaced = { ...group, name: "Add a drink", options: [{ name: "Cola", priceChange: 150, allergens: null }] };
       expect((await putOptions(req("PUT", `/api/admin/menu/options/${catId}`, "manager", replaced), ctx(catId))).status).toBe(200);
       g = (await publicMenu()).optionGroups[`Meals ${tag}`];
       expect(g.name).toBe("Add a drink");
@@ -320,7 +320,7 @@ describe.skipIf(!enabled)("admin menu manager (real database)", () => {
       const before = await mineOf();
       const bads = [
         { ...group, maxPicks: 3 }, { ...group, minPicks: 2 }, { ...group, options: [] },
-        { ...group, options: [{ name: "A", priceChange: -5 }] }, { ...group, options: [{ name: "Same", priceChange: 1 }, { name: "same", priceChange: 2 }] },
+        { ...group, options: [{ name: "A", priceChange: -5, allergens: null }] }, { ...group, options: [{ name: "Same", priceChange: 1, allergens: null }, { name: "same", priceChange: 2, allergens: null }] },
         { ...group, extra: 1 }, { ...group, name: "" },
       ];
       for (const b of bads) expect((await putOptions(req("PUT", `/api/admin/menu/options/${catId}`, "manager", b), ctx(catId))).status).toBe(400);

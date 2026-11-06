@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { category, item, offer, option, optionGroup } from "@/db/schema";
 import type { Db } from "@/lib/db/client";
+import { normaliseEntry } from "@/lib/allergens";
 import { slugify } from "@/lib/menu-model";
 import { auditInsert, type Actor } from "./audit";
 import type { OptionGroupInput } from "./menu-schema";
@@ -19,7 +20,9 @@ export type AdminItem = {
   slug: string;
   description: string;
   price: number;
+  /** null = not entered. Normalised: a list without its provenance timestamp reads as null. */
   allergens: string[] | null;
+  allergensEnteredAt: string | null;
   dietaryTags: string[];
   soldOut: boolean;
   visible: boolean;
@@ -32,7 +35,7 @@ export type AdminOptionGroup = {
   required: boolean;
   minPicks: number;
   maxPicks: number;
-  options: { id: number; name: string; priceChange: number }[];
+  options: { id: number; name: string; priceChange: number; allergens: string[] | null; allergensEnteredAt: string | null }[];
 };
 export type MenuAdminView = { categories: AdminCategory[]; items: AdminItem[]; optionGroups: AdminOptionGroup[] };
 
@@ -45,7 +48,7 @@ export async function loadMenuAdmin(db: Db): Promise<MenuAdminView> {
   ]);
   return {
     categories: cats.map((c) => ({ id: c.id, name: c.name, slug: c.slug, sortOrder: c.sortOrder, visible: c.visible })),
-    items: items.map((i) => ({ id: i.id, categoryId: i.categoryId, name: i.name, slug: i.slug, description: i.description, price: i.price, allergens: i.allergens, dietaryTags: i.dietaryTags, soldOut: i.soldOut, visible: i.visible, sortOrder: i.sortOrder })),
+    items: items.map((i) => ({ id: i.id, categoryId: i.categoryId, name: i.name, slug: i.slug, description: i.description, price: i.price, allergens: normaliseEntry(i.allergens, i.allergensEnteredAt), allergensEnteredAt: i.allergensEnteredAt?.toISOString() ?? null, dietaryTags: i.dietaryTags, soldOut: i.soldOut, visible: i.visible, sortOrder: i.sortOrder })),
     // The public menu model supports ONE category-level group per category.
     optionGroups: groups
       .filter((g) => g.itemId == null && g.categoryId != null)
@@ -56,7 +59,7 @@ export async function loadMenuAdmin(db: Db): Promise<MenuAdminView> {
         required: g.required,
         minPicks: g.minPicks,
         maxPicks: g.maxPicks,
-        options: opts.filter((o) => o.groupId === g.id).map((o) => ({ id: o.id, name: o.name, priceChange: o.priceChange })),
+        options: opts.filter((o) => o.groupId === g.id).map((o) => ({ id: o.id, name: o.name, priceChange: o.priceChange, allergens: normaliseEntry(o.allergens, o.allergensEnteredAt), allergensEnteredAt: o.allergensEnteredAt?.toISOString() ?? null })),
       })),
   };
 }
@@ -132,17 +135,20 @@ const samePermutation = (a: number[], b: number[]) => a.length === b.length && n
 
 // ---- items ----------------------------------------------------------------------------
 
-type ItemFields = Omit<AdminItem, "id" | "slug" | "sortOrder">;
+type ItemFields = Omit<AdminItem, "id" | "slug" | "sortOrder" | "allergensEnteredAt">;
 
 export async function createItem(db: Db, a: Actor, f: ItemFields): Promise<Result<{ id: number; slug: string }>> {
   const [cat] = await db.select({ id: category.id }).from(category).where(eq(category.id, f.categoryId)).limit(1);
   if (!cat) return { ok: false, code: "INVALID", message: "Choose a category." };
   const slug = await freeSlug(db, item, slugify(f.name));
   const [{ max }] = await db.select({ max: sql<number>`coalesce(max(${item.sortOrder}), 0)::int` }).from(item).where(eq(item.categoryId, f.categoryId));
-  const [row] = await db.insert(item).values({ ...f, slug, sortOrder: max + 1 }).returning({ id: item.id });
+  // An entered list is stamped with the time a person entered it; null stays null (the database requires the pair).
+  const [row] = await db.insert(item).values({ ...f, allergensEnteredAt: f.allergens === null ? null : a.now, slug, sortOrder: max + 1 }).returning({ id: item.id });
   await auditInsert(db, a, "menu.item.create", `item:${row.id}`, null, f);
   return { ok: true, id: row.id, slug };
 }
+
+const sameSet = (x: string[], y: string[]) => x.length === y.length && x.every((k) => y.includes(k));
 
 const editable = (i: typeof item.$inferSelect): ItemFields => ({
   categoryId: i.categoryId, name: i.name, description: i.description, price: i.price, allergens: i.allergens, dietaryTags: i.dietaryTags, soldOut: i.soldOut, visible: i.visible,
@@ -159,7 +165,10 @@ export async function updateItem(db: Db, a: Actor, id: number, f: ItemFields): P
     const [{ max }] = await db.select({ max: sql<number>`coalesce(max(${item.sortOrder}), 0)::int` }).from(item).where(eq(item.categoryId, f.categoryId));
     sortOrder = max + 1; // moved: goes to the end of its new category
   }
-  await db.batch([db.update(item).set({ ...f, sortOrder }).where(eq(item.id, id)), auditInsert(db, a, "menu.item.update", `item:${id}`, editable(before), f)]);
+  // Re-saving the same list keeps its original entry time; changing it, or entering it for the first time, stamps now; clearing it removes the stamp.
+  const same = f.allergens !== null && before.allergens !== null && before.allergensEnteredAt !== null && sameSet(f.allergens, before.allergens);
+  const allergensEnteredAt = f.allergens === null ? null : same ? before.allergensEnteredAt : a.now;
+  await db.batch([db.update(item).set({ ...f, allergensEnteredAt, sortOrder }).where(eq(item.id, id)), auditInsert(db, a, "menu.item.update", `item:${id}`, editable(before), f)]);
   return { ok: true };
 }
 
@@ -203,11 +212,18 @@ export async function saveOptionGroup(db: Db, a: Actor, categoryId: number, g: O
   const groupId = Number(seq.rows[0].id);
   const oldGroups = db.select({ id: optionGroup.id }).from(optionGroup).where(and(eq(optionGroup.categoryId, categoryId), sql`${optionGroup.itemId} is null`));
   const minPicks = g.required ? Math.max(g.minPicks, 1) : g.minPicks; // required means at least one
+  const prevOptions = await db.select().from(option).where(inArray(option.groupId, oldGroups));
   await db.batch([
     db.delete(option).where(inArray(option.groupId, oldGroups)),
     db.delete(optionGroup).where(and(eq(optionGroup.categoryId, categoryId), sql`${optionGroup.itemId} is null`)),
     db.insert(optionGroup).values({ id: groupId, categoryId, name: g.name, required: g.required, minPicks, maxPicks: g.maxPicks }),
-    db.insert(option).values(g.options.map((o, n) => ({ groupId, name: o.name, priceChange: o.priceChange, sortOrder: n }))),
+    db.insert(option).values(
+      g.options.map((o, n) => {
+        const was = prevOptions.find((p) => p.name === o.name);
+        const kept = o.allergens !== null && was?.allergens != null && was.allergensEnteredAt != null && sameSet(o.allergens, was.allergens);
+        return { groupId, name: o.name, priceChange: o.priceChange, sortOrder: n, allergens: o.allergens, allergensEnteredAt: o.allergens === null ? null : kept ? was!.allergensEnteredAt : a.now };
+      }),
+    ),
     auditInsert(db, a, "menu.options.save", `category:${categoryId}`, before, { ...g, minPicks }),
   ]);
   return { ok: true };

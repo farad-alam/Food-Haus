@@ -4,7 +4,7 @@ import { AddToBasket } from "@/components/basket";
 import { CategoryOffers } from "@/components/live-offers";
 import { ReviewsBadge } from "@/components/reviews";
 import { getMenu } from "@/lib/menu";
-import { ALLERGENS } from "@/lib/menu-constants";
+import { claimText, itemClaim } from "@/lib/allergens";
 import { formatPence, formatPenceExact } from "@/lib/money";
 import { shop } from "@/lib/shop";
 
@@ -61,17 +61,7 @@ export default async function MenuPage() {
                       <span className="whitespace-nowrap font-bold text-brand">{formatPence(item.price)}</span>
                     </div>
                     {item.description && <p className="mt-1 text-sm text-muted">{item.description}</p>}
-                    {item.allergens === null ? (
-                      <p className="mt-2 text-xs text-muted">
-                        Allergens: please ask before ordering — call {shop.phoneDisplay}.
-                      </p>
-                    ) : item.allergens.length > 0 ? (
-                      <p className="mt-2 text-xs text-muted">
-                        Contains: {ALLERGENS.filter((a) => item.allergens!.includes(a.key)).map((a) => a.label).join(", ")}
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-xs text-muted">No major allergens declared.</p>
-                    )}
+                    <ItemAllergens item={item} options={menu.optionGroups[item.category]?.options ?? []} />
                   </div>
                   <div className="flex justify-end">
                     <AddToBasket id={item.id} name={item.name} price={item.price} soldOut={item.soldOut} optionGroup={menu.optionGroups[item.category] ?? null} />
@@ -87,5 +77,16 @@ export default async function MenuPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+/** The ONLY allergen line on a menu card: whatever lib/allergens.ts says may be claimed, never anything inferred. */
+function ItemAllergens({ item, options }: { item: { allergens: string[] | null }; options: { allergens: string[] | null }[] }) {
+  const { text, ask } = claimText(itemClaim(item.allergens, options.map((o) => o.allergens)), options.length > 0);
+  return (
+    <p className="mt-2 text-xs text-muted" data-allergen-claim={item.allergens === null ? "unknown" : "entered"}>
+      {text}
+      {ask && <> Call {shop.phoneDisplay}.</>}
+    </p>
   );
 }

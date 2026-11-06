@@ -25,6 +25,7 @@ export async function loadMenuRows(db: Db): Promise<MenuRows> {
       description: i.description,
       price: i.price,
       allergens: i.allergens,
+      allergensEnteredAt: i.allergensEnteredAt,
       dietaryTags: i.dietaryTags,
       soldOut: i.soldOut,
       visible: i.visible,
@@ -42,7 +43,7 @@ export async function loadMenuRows(db: Db): Promise<MenuRows> {
         maxPicks: g.maxPicks,
         options: opts
           .filter((o) => o.groupId === g.id)
-          .map((o) => ({ name: o.name, priceChange: o.priceChange, sortOrder: o.sortOrder })),
+          .map((o) => ({ name: o.name, priceChange: o.priceChange, sortOrder: o.sortOrder, allergens: o.allergens, allergensEnteredAt: o.allergensEnteredAt })),
       })),
   };
 }

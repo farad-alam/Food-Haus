@@ -46,7 +46,7 @@ function BlockView({ b }: { b: Block }) {
   }
 }
 
-export function LegalPage({ doc, children }: { doc: LegalDoc; children?: React.ReactNode }) {
+export function LegalPage({ doc, children, beforeSections, extraNotice }: { doc: LegalDoc; children?: React.ReactNode; beforeSections?: React.ReactNode; extraNotice?: React.ReactNode }) {
   const open = placeholdersIn(doc).length;
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
@@ -56,7 +56,9 @@ export function LegalPage({ doc, children }: { doc: LegalDoc; children?: React.R
           <strong>DRAFT, not approved.</strong> The owner has not yet approved this page (R11.12), so it must not be relied on. {open} item{open === 1 ? " is" : "s are"} still to be decided; they are marked in amber boxes.
         </p>
       )}
+      {extraNotice}
       <div className="space-y-3">{doc.intro.map((b, i) => <BlockView key={i} b={b} />)}</div>
+      {beforeSections}
       {doc.sections.map((s) => (
         <section key={s.id} aria-labelledby={`${s.id}-h`} className="space-y-3">
           <h2 id={`${s.id}-h`} className="font-display text-3xl">{s.title}</h2>
@@ -66,6 +68,7 @@ export function LegalPage({ doc, children }: { doc: LegalDoc; children?: React.R
         </section>
       ))}
       {doc.slug === "cookies" && <p><Link href="/privacy" className="underline">Read the Privacy Policy</Link></p>}
+      {doc.slug === "allergens" && <p><Link href="/menu" className="underline">Back to the menu</Link></p>}
       {doc.slug === "terms" && (
         <p className="space-x-4">
           <Link href="/allergens" className="underline">Allergen information</Link>

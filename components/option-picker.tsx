@@ -3,6 +3,7 @@
 import { useId, useRef, useState } from "react";
 import { useBasket } from "@/components/basket";
 import { formatPenceExact } from "@/lib/money";
+import { optionClaim, optionText } from "@/lib/allergens";
 import { inGroupOrder, isSingleChoice, isValidSelection, optionNames, ruleText, toggleOption, unitPrice, type PickerGroup } from "@/lib/option-select";
 
 // "Make it a Meal" and extras (R6.2). A native <dialog>: the browser traps
@@ -67,7 +68,10 @@ export function AddWithOptions({ id, name, price, group }: { id: string; name: s
                       disabled={atMax}
                       onChange={() => setSelected(toggleOption(group, selected, o.id))}
                     />
-                    <span className="grow">{o.name}</span>
+                    <span className="grow">
+                      {o.name}
+                      <span className="block text-xs text-muted">{optionText(optionClaim(o.allergens)).text}</span>
+                    </span>
                     <span className="whitespace-nowrap text-muted">{o.priceChange > 0 ? `+${formatPenceExact(o.priceChange)}` : "Free"}</span>
                   </label>
                 );

@@ -1,10 +1,12 @@
 import seed from "@/data/menu-seed.json";
+import { normaliseEntry } from "./allergens";
 
 // Pure menu model: types and the builder. No Next.js imports, so the pricing
 // engine and its tests can use it directly. The cached accessor lives in
 // lib/menu.ts.
 
-export type MenuOption = { id: string; name: string; priceChange: number };
+/** allergens: null = NOT yet entered by the owner (never "none"). See lib/allergens.ts. */
+export type MenuOption = { id: string; name: string; priceChange: number; allergens: string[] | null };
 export type MenuOptionGroup = {
   id: string;
   name: string;
@@ -20,7 +22,7 @@ export type MenuItem = {
   name: string;
   description: string;
   price: number; // pence
-  /** null = allergen data NOT supplied yet (launch blocker, R11.10). */
+  /** null = allergen data NOT entered yet (launch blocker, R11.10); [] = the owner confirmed none. Only ever set through normaliseEntry. */
   allergens: string[] | null;
   dietaryTags: string[];
   soldOut: boolean;
@@ -65,6 +67,8 @@ export type MenuRows = {
     description: string;
     price: number;
     allergens: string[] | null;
+    /** When a person explicitly entered `allergens`. Missing = not entered, whatever `allergens` holds. */
+    allergensEnteredAt?: Date | string | null;
     dietaryTags: string[];
     soldOut: boolean;
     visible: boolean;
@@ -76,7 +80,7 @@ export type MenuRows = {
     required: boolean;
     minPicks: number;
     maxPicks: number;
-    options: { name: string; priceChange: number; sortOrder?: number }[];
+    options: { name: string; priceChange: number; sortOrder?: number; allergens?: string[] | null; allergensEnteredAt?: Date | string | null }[];
   }[];
 };
 
@@ -101,7 +105,7 @@ export function rowsToMenu(rows: MenuRows): Menu {
             name: i.name,
             description: i.description,
             price: i.price,
-            allergens: i.allergens,
+            allergens: normaliseEntry(i.allergens, i.allergensEnteredAt),
             dietaryTags: i.dietaryTags,
             soldOut: i.soldOut,
             visible: i.visible,
@@ -127,6 +131,7 @@ export function rowsToMenu(rows: MenuRows): Menu {
           id: `${groupId}-${slugify(o.name).slice(0, 24)}`,
           name: o.name,
           priceChange: o.priceChange,
+          allergens: normaliseEntry(o.allergens, o.allergensEnteredAt),
         })),
     };
   }

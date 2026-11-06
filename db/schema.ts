@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -56,12 +57,18 @@ export const item = pgTable(
     photoAlt: text("photo_alt"), // R11.15; falls back to name
     // The 14 UK allergens. null = not yet supplied (blocks launch, R11.10).
     allergens: jsonb("allergens").$type<string[] | null>(),
+    // When a person explicitly entered the list above. Set together with `allergens` or not at
+    // all (a CHECK constraint enforces it), so a list nobody entered can never exist.
+    allergensEnteredAt: timestamp("allergens_entered_at", { withTimezone: true }),
     dietaryTags: jsonb("dietary_tags").$type<string[]>().notNull().default([]),
     soldOut: boolean("sold_out").notNull().default(false),
     visible: boolean("visible").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
   },
-  (t) => [index("item_category_idx").on(t.categoryId)],
+  (t) => [
+    index("item_category_idx").on(t.categoryId),
+    check("item_allergens_provenance", sql`(${t.allergens} is null) = (${t.allergensEnteredAt} is null)`),
+  ],
 );
 
 export const optionGroup = pgTable("option_group", {
@@ -75,13 +82,20 @@ export const optionGroup = pgTable("option_group", {
   maxPicks: integer("max_picks").notNull().default(1),
 });
 
-export const option = pgTable("option", {
-  id: serial("id").primaryKey(),
-  groupId: integer("group_id").notNull().references(() => optionGroup.id),
-  name: text("name").notNull(),
-  priceChange: integer("price_change").notNull().default(0), // pence
-  sortOrder: integer("sort_order").notNull().default(0),
-});
+export const option = pgTable(
+  "option",
+  {
+    id: serial("id").primaryKey(),
+    groupId: integer("group_id").notNull().references(() => optionGroup.id),
+    name: text("name").notNull(),
+    priceChange: integer("price_change").notNull().default(0), // pence
+    sortOrder: integer("sort_order").notNull().default(0),
+    // Same rules as item.allergens: null = not yet entered; an option (e.g. "Make it a Meal") can add allergens.
+    allergens: jsonb("allergens").$type<string[] | null>(),
+    allergensEnteredAt: timestamp("allergens_entered_at", { withTimezone: true }),
+  },
+  (t) => [check("option_allergens_provenance", sql`(${t.allergens} is null) = (${t.allergensEnteredAt} is null)`)],
+);
 
 export const offer = pgTable("offer", {
   id: serial("id").primaryKey(),

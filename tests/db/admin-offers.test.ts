@@ -207,7 +207,7 @@ describe.skipIf(!enabled)("admin offers (real database)", () => {
 
     it("an automatic buy-one-get-one on a category applies with no code, only to that category", async () => {
       const [cat] = await db.insert(category).values({ name: `Bogof cat ${tag}`, slug: `bogof-cat-${tag.toLowerCase()}`, sortOrder: 98, visible: true }).returning();
-      await db.insert(item).values({ categoryId: cat.id, name: `Bogof item ${tag}`, slug: `bogof-item-${tag.toLowerCase()}`, description: "", price: 650, allergens: [], dietaryTags: [], sortOrder: 1 });
+      await db.insert(item).values({ categoryId: cat.id, name: `Bogof item ${tag}`, slug: `bogof-item-${tag.toLowerCase()}`, description: "", price: 650, dietaryTags: [], sortOrder: 1 });
       const id = await create({ name: `Two for one ${tag}`, type: "bogof", value: null, appliesToCategoryId: cat.id, channel: "collection" });
       const bogofItem = `bogof-cat-${tag.toLowerCase()}-bogof-item-${tag.toLowerCase()}`;
       const two = await quote({ items: [{ itemId: bogofItem, quantity: 2 }] });

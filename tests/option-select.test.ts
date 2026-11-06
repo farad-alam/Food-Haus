@@ -4,9 +4,9 @@ import { priceOrder } from "@/lib/pricing";
 import type { Menu, MenuOptionGroup } from "@/lib/menu-model";
 
 const opts = [
-  { id: "cheese", name: "Cheese", priceChange: 100 },
-  { id: "bacon", name: "Bacon", priceChange: 150 },
-  { id: "onion", name: "Onion", priceChange: 0 },
+  { id: "cheese", name: "Cheese", priceChange: 100, allergens: null },
+  { id: "bacon", name: "Bacon", priceChange: 150, allergens: null },
+  { id: "onion", name: "Onion", priceChange: 0, allergens: null },
 ];
 const g = (over: Partial<PickerGroup> = {}): PickerGroup => ({ id: "t", name: "Toppings", required: false, minPicks: 0, maxPicks: 1, options: opts, ...over });
 
