@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analyticsCookieNames, consentCookie, CONSENT_COOKIE, CONSENT_MAX_AGE_S, CONSENT_VERSION, gaScriptSrc, parseConsent, readCookie, validGaId } from "@/lib/consent";
-import { LEGAL_APPROVED, outstandingPlaceholders, placeholdersIn, cookiePolicy, privacyPolicy } from "@/lib/legal";
+import { LEGAL_APPROVED, outstandingPlaceholders, placeholdersIn, cookiePolicy, privacyPolicy, termsPolicy } from "@/lib/legal";
+import { CHECKOUT_EXPIRY_MINUTES } from "@/lib/stripe";
 
 const NOW = Date.parse("2026-11-06T12:00:00Z");
 const val = (c: string) => c.split(";")[0].split("=")[1];
@@ -53,7 +54,7 @@ describe("legal pages", () => {
     for (const must of ["legal name", "contact email", "retention", "legal basis", "provider name"]) expect(priv).toContain(must);
     expect(placeholdersIn(cookiePolicy).length).toBeGreaterThan(2);
     // no real third-party company is named as fact on either page
-    for (const name of ["Stripe", "Cloudflare", "Neon", "Resend", "Vercel"]) expect([name, text(privacyPolicy).includes(name) || text(cookiePolicy).includes(name)]).toEqual([name, false]);
+    for (const name of ["Stripe", "Cloudflare", "Neon", "Resend", "Vercel"]) expect([name, text(privacyPolicy).includes(name) || text(cookiePolicy).includes(name) || text(termsPolicy).includes(name)]).toEqual([name, false]);
   });
   it("describe the cookies the site really uses", () => {
     const t = JSON.stringify(cookiePolicy);
@@ -61,5 +62,26 @@ describe("legal pages", () => {
   });
   it("state the real retention behaviour from the code", () => {
     expect(JSON.stringify(privacyPolicy)).toContain("12 months");
+  });
+});
+
+describe("terms page", () => {
+  const all = JSON.stringify(termsPolicy);
+  it("leaves every legal decision to a placeholder", () => {
+    const ph = placeholdersIn(termsPolicy).map((p) => p.ph.toLowerCase()).join("|");
+    for (const must of ["cancellation policy", "refund policy", "limits on liability", "governing law", "right to cancel", "contract", "vat"]) expect(ph).toContain(must);
+  });
+  it("covers every section a customer needs", () => {
+    expect(termsPolicy.sections.map((s) => s.id)).toEqual(["about", "ordering", "prices", "delivery", "payment", "allergens", "cancel", "refunds", "legal"]);
+  });
+  it("describes only what the system really does", () => {
+    expect(all).toContain("no cancel button"); // there is no customer self-cancel feature
+    expect(all).toContain("done by hand"); // refunds are manual (R8.10)
+    expect(all).toContain("cannot choose a later time"); // ASAP only (Q5)
+    expect(CHECKOUT_EXPIRY_MINUTES).toBeGreaterThanOrEqual(30); // the page says "about 30 minutes"
+    expect(CHECKOUT_EXPIRY_MINUTES).toBeLessThanOrEqual(35);
+  });
+  it("does not invent contact details, a phone number or a governing law", () => {
+    expect(all).not.toMatch(/0\d{10}|\+44|@|England|Wales|Scotland|14 days|\d+ days/i);
   });
 });

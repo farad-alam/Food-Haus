@@ -66,6 +66,12 @@ export function LegalPage({ doc, children }: { doc: LegalDoc; children?: React.R
         </section>
       ))}
       {doc.slug === "cookies" && <p><Link href="/privacy" className="underline">Read the Privacy Policy</Link></p>}
+      {doc.slug === "terms" && (
+        <p className="space-x-4">
+          <Link href="/allergens" className="underline">Allergen information</Link>
+          <Link href="/privacy" className="underline">Privacy Policy</Link>
+        </p>
+      )}
     </main>
   );
 }

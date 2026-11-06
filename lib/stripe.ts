@@ -1,6 +1,9 @@
 // Minimal Stripe Checkout client over fetch (no SDK: smaller bundle, runs on
 // Workers). Only what the order flow needs. `fetchImpl` is injectable for tests.
 
+/** Card payment window. Stripe's minimum is 30; asking for 31 survives clock skew. The terms page says "about 30 minutes". */
+export const CHECKOUT_EXPIRY_MINUTES = 31;
+
 export type CheckoutSessionInput = {
   secretKey: string;
   orderId: number;
@@ -45,7 +48,7 @@ export async function createCheckoutSession(i: CheckoutSessionInput): Promise<St
     success_url: i.successUrl,
     cancel_url: i.cancelUrl,
     // R8.2: about 30 minutes. Stripe's minimum is 30, so ask for 31 to survive clock skew.
-    expires_at: String(Math.floor(i.now.getTime() / 1000) + 31 * 60),
+    expires_at: String(Math.floor(i.now.getTime() / 1000) + CHECKOUT_EXPIRY_MINUTES * 60),
   });
   const res = await f(API, {
     method: "POST",

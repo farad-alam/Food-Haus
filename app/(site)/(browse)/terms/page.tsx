@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
+import { LegalPage } from "@/components/legal";
+import { LEGAL_APPROVED, termsPolicy } from "@/lib/legal";
 
+// DRAFT until the owner approves it (R11.12): lib/legal.ts holds the text and the list of open decisions.
 export const metadata: Metadata = {
   title: "Terms & Cancellation Policy",
   alternates: { canonical: "/terms" },
+  robots: LEGAL_APPROVED ? undefined : { index: false, follow: true },
 };
 
-// DRAFT PLACEHOLDER. MotionBite drafts this page and the owner approves it
-// before launch (R11.12) — it must not go live as-is.
 export default function Page() {
-  return (
-    <main className="mx-auto max-w-3xl space-y-3 px-4 py-8">
-      <h1 className="font-display text-5xl">Terms & Cancellation Policy</h1>
-      <p className="text-muted">This page is being prepared.</p>
-    </main>
-  );
+  return <LegalPage doc={termsPolicy} />;
 }

@@ -1,6 +1,6 @@
 import { CONTACT_RETENTION_MONTHS } from "./retention";
 
-// The privacy and cookie policy pages (R5.10, R11.9, R11.12, R13.11) as DATA, so what is still
+// The privacy, cookie and terms pages (R5.10, R11.9, R11.12, R13.11) as DATA, so what is still
 // undecided can be counted and checked.
 //
 // Two kinds of text:
@@ -24,7 +24,7 @@ export type Block =
   | { t: "table"; head: string[]; rows: Cell[][] }
   | { t: "ph"; ph: string; hint?: string };
 export type Section = { id: string; title: string; blocks: Block[] };
-export type LegalDoc = { slug: "privacy" | "cookies"; title: string; intro: Block[]; sections: Section[] };
+export type LegalDoc = { slug: "privacy" | "cookies" | "terms"; title: string; intro: Block[]; sections: Section[] };
 
 export const isPh = (c: unknown): c is Ph => typeof c === "object" && c !== null && "ph" in c;
 const ph = (need: string, hint?: string): Ph => ({ ph: need, hint });
@@ -43,7 +43,7 @@ export function placeholdersIn(doc: LegalDoc): Ph[] {
   return out;
 }
 
-export const outstandingPlaceholders = () => [privacyPolicy, cookiePolicy].flatMap((d) => placeholdersIn(d).map((p) => ({ doc: d.slug, ...p })));
+export const outstandingPlaceholders = () => [privacyPolicy, cookiePolicy, termsPolicy].flatMap((d) => placeholdersIn(d).map((p) => ({ doc: d.slug, ...p })));
 
 // ---------------------------------------------------------------------------------------------
 
@@ -199,6 +199,124 @@ export const cookiePolicy: LegalDoc = {
       id: "contact",
       title: "Questions",
       blocks: [{ t: "ph", ph: "Contact for questions about cookies" }],
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------------------------
+// Terms and cancellation (R5.10, R11.12). The mechanics below are what the system really does;
+// the legal wording of cancellation, refunds, liability and governing law is left to the owner.
+
+export const termsPolicy: LegalDoc = {
+  slug: "terms",
+  title: "Terms & Cancellation Policy",
+  intro: [
+    { t: "p", text: "These terms explain how ordering from Food Haus through this website works: how an order is placed and accepted, how you pay, delivery and collection, and what happens if you need to cancel or something goes wrong." },
+    { t: "ph", ph: "Date these terms were last updated, and which version applies to orders already placed", hint: "Add once the owner approves the final wording." },
+  ],
+  sections: [
+    {
+      id: "about",
+      title: "Who these terms are with",
+      blocks: [
+        { t: "ph", ph: "Legal name of the business, Companies House number, registered office address and VAT number if registered", hint: "The same details as the privacy policy and the site footer (R11.11)." },
+        { t: "ph", ph: "Who these terms apply to (for example consumers ordering for personal use) and anything excluded, such as large or catering orders" },
+      ],
+    },
+    {
+      id: "ordering",
+      title: "Placing and accepting an order",
+      blocks: [
+        { t: "ul", items: [
+          "You can order only while the shop is open and taking orders. When it is closed or paused the site says so and the order button is switched off.",
+          "Prices are checked again on our server when you order. If a price, delivery fee or offer has changed since you added items, you see the new total before you pay.",
+          "When you place an order we pass it to the kitchen. The kitchen can accept it or decline it, for example if it is too busy or an item has run out. You can follow the status on your order page, and you are told if it is declined and why.",
+          "Orders are for as soon as possible. You cannot choose a later time.",
+        ] },
+        { t: "ph", ph: "Legal wording on when the contract between you and the business is formed (when the kitchen accepts the order, not when you press the button) and on the shop's right to decline" },
+      ],
+    },
+    {
+      id: "prices",
+      title: "Prices and offers",
+      blocks: [
+        { t: "ul", items: [
+          "All prices are in pounds sterling.",
+          "Offers and promo codes apply only on the dates, up to the limits and with the conditions shown with them. A code that has expired, been used up or does not apply to your basket is refused at checkout.",
+        ] },
+        { t: "ph", ph: "Statement on VAT (the menu currently says prices include VAT) and whether the business is VAT registered" },
+        { t: "ph", ph: "Legal wording for offer conditions, misprinted prices and who can use an offer" },
+      ],
+    },
+    {
+      id: "delivery",
+      title: "Delivery and collection",
+      blocks: [
+        { t: "ul", items: [
+          "We deliver only to the postcode areas listed at checkout. Each area has its own delivery fee, minimum order and estimated time, and you see them before you pay.",
+          "Times are estimates, not promises. They can change when the kitchen is busy.",
+          "For collection, come to the shop and give your order number.",
+        ] },
+        { t: "ph", ph: "What happens if nobody answers the door or the address is wrong, and who is responsible for delays", hint: "Business and legal decision." },
+        { t: "ph", ph: "Shop address and phone shown for collection and for problems with delivery", hint: "Contact details are confirmed by the owner, not assumed." },
+      ],
+    },
+    {
+      id: "payment",
+      title: "Paying for your order",
+      blocks: [
+        { t: "ul", items: [
+          "Card: you pay on the payment provider's own secure page. We never see or store your card number. Your order goes to the kitchen only once the payment is confirmed.",
+          `If you start a card payment and do not finish it, the payment page closes after about 30 minutes, the order is cancelled automatically and you are not charged. Your basket stays as it was so you can try again.`,
+          "Cash: you pay the driver, or the shop when you collect. The shop may set a highest order value for cash and a daily limit on cash orders per phone number and per internet connection. If you reach one, the site tells you and you can pay by card instead.",
+        ] },
+        { t: "ph", ph: "Payment provider's terms to be referred to, wording about failed or disputed payments, and any card surcharge (the site has none today)" },
+      ],
+    },
+    {
+      id: "allergens",
+      title: "Allergies and halal",
+      blocks: [
+        { t: "p", text: "Please read our allergen information before you order, and call us before you eat if you are unsure. A printed allergen list comes with delivery orders. Anything you write in the order note is passed to the kitchen but is not a substitute for telling the staff about a serious allergy." },
+        { t: "ph", ph: "Legal wording on allergens, cross-contamination and the business's responsibility" },
+        { t: "ph", ph: "Wording of the halal claim and the certifier, if any", hint: "Needs the owner's confirmation of what can truthfully be said (open question Q4)." },
+      ],
+    },
+    {
+      id: "cancel",
+      title: "Cancelling an order",
+      blocks: [
+        { t: "ul", items: [
+          "There is no cancel button on the website. Once you have placed an order, contact the shop as quickly as you can.",
+          "A card order you never pay for is cancelled automatically (see Paying for your order).",
+          "The shop can cancel or decline an order. If you had already paid by card you are refunded.",
+        ] },
+        { t: "ph", ph: "The cancellation policy: whether and until when a customer may cancel an accepted order, and what happens once cooking has started" },
+        { t: "ph", ph: "Statement on the right to cancel for food that is made to order or quickly goes off, in the wording the owner's adviser approves", hint: "UK consumer law has an exception for goods that spoil quickly. Whether and how it applies here is a legal decision." },
+        { t: "ph", ph: "How to contact the shop to cancel (phone number, hours)" },
+      ],
+    },
+    {
+      id: "refunds",
+      title: "Refunds and problems with your order",
+      blocks: [
+        { t: "ul", items: [
+          "Card refunds are made by the shop, back to the card that was used. They are not automatic and are done by hand.",
+          "If the shop declines a card order you had already paid for, it refunds you.",
+          "Tell us about a missing, wrong or poor-quality item as soon as you can, with your order number.",
+        ] },
+        { t: "ph", ph: "The refund policy: when a full or partial refund or replacement is given, evidence needed, time limit for reporting problems, and how long a refund takes to reach your account" },
+        { t: "ph", ph: "How to make a complaint, and who deals with it" },
+      ],
+    },
+    {
+      id: "legal",
+      title: "Our responsibility and the law",
+      blocks: [
+        { t: "ph", ph: "Limits on liability, in the wording the owner's adviser approves", hint: "Must not exclude anything the law does not allow to be excluded." },
+        { t: "ph", ph: "Governing law and which courts apply" },
+        { t: "ph", ph: "How these terms and our Privacy Policy and Cookie Policy relate, and how changes to the terms are announced" },
+      ],
     },
   ],
 };
