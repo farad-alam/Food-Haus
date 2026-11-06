@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { BasketProvider, StickyBasketBar } from "@/components/basket";
+import { Analytics, CookieBanner, CookieSettingsButton } from "@/components/cookie-consent";
+import { validGaId } from "@/lib/consent";
 import { fullAddress, mapsLink, shop } from "@/lib/shop";
 
 // Public site chrome: header, basket, footer. The admin panel (app/admin) lives
 // outside this group so it never inherits any of it.
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
+  // R11.9: with no GA4 ID configured there is nothing to ask about, so no banner and no analytics code.
+  const analyticsId = validGaId(process.env.NEXT_PUBLIC_GA_ID);
   return (
     <BasketProvider>
           <header className="sticky top-0 z-30 border-b border-line bg-ink/95 backdrop-blur">
@@ -27,6 +31,9 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
 
           {/* bottom padding reserves space for the sticky basket bar (R10.8) */}
           <div className="flex-1 pb-24">{children}</div>
+
+          <CookieBanner analyticsId={analyticsId} />
+          <Analytics id={analyticsId} />
 
           <Suspense fallback={null}>
             <StickyBasketBar />
@@ -59,6 +66,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
                   <li><Link href="/privacy">Privacy</Link></li>
                   <li><Link href="/cookies">Cookies</Link></li>
                   <li><Link href="/terms">Terms</Link></li>
+                  {analyticsId && <li><CookieSettingsButton analyticsId={analyticsId} /></li>}
                 </ul>
               </nav>
             </div>
