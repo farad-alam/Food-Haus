@@ -12,6 +12,7 @@
     "db:migrate": "tsx scripts/migrate.mts",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:ci-build": "tsx scripts/ci-preflight.mts && npm run db:migrate && npm run db:seed && tsx scripts/bootstrap-preview.mts && opennextjs-cloudflare build",
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "test": "vitest run",
     "db:seed": "tsx scripts/seed.mts",
