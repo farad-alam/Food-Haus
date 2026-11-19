@@ -3,6 +3,8 @@ import { readinessFromMenu } from "@/lib/allergen-readiness";
 import { LEGAL_APPROVED } from "@/lib/legal";
 import { getMenu } from "@/lib/menu";
 import { SITE_URL } from "@/lib/shop";
+import { areaIsIndexable, areaSlug } from "@/lib/areas";
+import { getLiveZones } from "@/lib/zones-public";
 
 // Area pages (/areas/[slug]) and blog articles join the sitemap only once
 // their content is real (R11.6) — nothing templated-and-empty is listed.
@@ -18,7 +20,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
   const allergens = LEGAL_APPROVED && ready ? ["/allergens"] : [];
   const legal = LEGAL_APPROVED ? ["/privacy", "/cookies", "/terms"] : [];
-  return ["", "/menu", "/offers", "/about", "/contact", ...allergens, ...legal].map((path) => ({
+  // Area pages join only once the SEO lead has added real local copy for that district (R11.6).
+  let areas: string[] = [];
+  try {
+    areas = (await getLiveZones()).map((z) => areaSlug(z.district)).filter((s) => areaIsIndexable(s)).map((s) => `/areas/${s}`);
+  } catch {
+    /* cannot tell: not listed */
+  }
+  return ["", "/menu", "/offers", "/about", "/contact", ...allergens, ...legal, ...areas].map((path) => ({
     url: `${SITE_URL}${path}`,
     lastModified,
   }));

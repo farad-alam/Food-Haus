@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo";
+import Link from "next/link";
+import { areaSlug } from "@/lib/areas";
+import { formatPenceExact } from "@/lib/money";
 import { getSchedule } from "@/lib/schedule-public";
+import { getLiveZones } from "@/lib/zones-public";
 import { weekTimetable } from "@/lib/shop-status";
 import { getContact } from "@/lib/contact-public";
 import { fullAddress, mapsLinkFor, phoneDisplay, telHref } from "@/lib/contact-format";
@@ -18,6 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ContactPage() {
   const timetable = weekTimetable((await getSchedule()).hours);
   const contact = await getContact();
+  const zones = await getLiveZones().catch(() => []);
   const tel = contact.phone;
   return (
     <main className="mx-auto max-w-3xl space-y-4 px-4 py-8">
@@ -46,7 +51,21 @@ export default async function ContactPage() {
           <p className="mt-2 text-sm text-muted">Times are UK time. We may close on bank holidays.</p>
         </section>
       )}
-      {/* TODO: delivery area renders here once the owner confirms the zones (section 14) */}
+      {/* Delivery area (R5.6): the districts that are active zones right now, with their fee, minimum and time. Nothing until zones exist. */}
+      {zones.length > 0 && (
+        <section aria-labelledby="zones-h" data-testid="contact-zones">
+          <h2 id="zones-h" className="font-display text-3xl">Delivery area</h2>
+          <ul className="mt-2 divide-y divide-line border-y border-line">
+            {zones.map((z) => (
+              <li key={z.district} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
+                <Link href={`/areas/${areaSlug(z.district)}`} className="font-bold underline">{z.district}</Link>
+                <span className="text-sm text-muted">{formatPenceExact(z.fee)} delivery · minimum {formatPenceExact(z.minOrder)} · about {z.estimatedMinutes} min</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-sm text-muted">Collection is always available. Times are estimates.</p>
+        </section>
+      )}
     </main>
   );
 }

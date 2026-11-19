@@ -3,6 +3,7 @@ import { closure, deliveryZone, openingHours, settings } from "@/db/schema";
 import type { Db } from "@/lib/db/client";
 import { londonParts } from "@/lib/hours";
 import { cleanNotice } from "@/lib/notice-text";
+import { clearLocalCache } from "@/lib/local-cache";
 import { contactFromStored, isConfirmed, type Contact } from "@/lib/contact";
 import { shopState } from "@/lib/shop-status";
 import { auditInsert, type Actor } from "./audit";
@@ -169,6 +170,7 @@ export async function createZone(db: Db, a: Actor, z: ZoneInput): Promise<Result
   try {
     const [row] = await db.insert(deliveryZone).values(z).returning({ id: deliveryZone.id });
     await audit(db, a, "zone.create", `zone:${row.id}`, null, z);
+    clearLocalCache("settings:zones"); // after the write, so a read in between cannot re-cache the old list; the public area pages follow the zones
     return { ok: true, id: row.id };
   } catch (e) {
     if (isUnique(e)) return { ok: false, code: "DUPLICATE", message: `${z.district} already exists.` };
@@ -180,6 +182,7 @@ export async function updateZone(db: Db, a: Actor, id: number, z: Omit<ZoneInput
   const [before] = await db.select().from(deliveryZone).where(eq(deliveryZone.id, id)).limit(1);
   if (!before) return { ok: false, code: "NOT_FOUND", message: "Zone not found." };
   await db.batch([db.update(deliveryZone).set(z).where(eq(deliveryZone.id, id)), audit(db, a, "zone.update", `zone:${id}`, before, { ...before, ...z })]);
+  clearLocalCache("settings:zones");
   return { ok: true };
 }
 
@@ -187,5 +190,6 @@ export async function deleteZone(db: Db, a: Actor, id: number): Promise<Result> 
   const [before] = await db.select().from(deliveryZone).where(eq(deliveryZone.id, id)).limit(1);
   if (!before) return { ok: false, code: "NOT_FOUND", message: "Zone not found." };
   await db.batch([db.delete(deliveryZone).where(eq(deliveryZone.id, id)), audit(db, a, "zone.delete", `zone:${id}`, before, null)]);
+  clearLocalCache("settings:zones");
   return { ok: true };
 }
