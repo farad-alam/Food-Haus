@@ -1,4 +1,5 @@
 import { revalidateTag } from "next/cache";
+import { clearLocalCache } from "./local-cache";
 
 /**
  * Called after every admin write to categories, items, prices, sold-out flags
@@ -8,6 +9,8 @@ import { revalidateTag } from "next/cache";
  * reads the database directly.
  */
 export function refreshMenuCache(): void {
+  clearLocalCache("menu");
+  clearLocalCache("offers"); // offers show category names
   try {
     revalidateTag("menu", { expire: 0 });
     revalidateTag("offers", { expire: 0 }); // offers show category names, so a category change must refresh them too
@@ -21,6 +24,7 @@ export function refreshMenuCache(): void {
 
 /** After an offer is created, edited or deleted: the public offers pages rebuild on their next view. */
 export function refreshOffersCache(): void {
+  clearLocalCache("offers");
   try {
     revalidateTag("offers", { expire: 0 });
   } catch (e) {
@@ -30,6 +34,7 @@ export function refreshOffersCache(): void {
 
 /** After opening hours, closed days or the pause switch change: public pages show the new state on their next view. */
 export function refreshSettingsCache(): void {
+  clearLocalCache("settings");
   try {
     revalidateTag("settings", { expire: 0 });
   } catch (e) {

@@ -1,4 +1,4 @@
-import { cacheLife, cacheTag } from "next/cache";
+import { cached } from "@/lib/local-cache";
 import { asc, eq } from "drizzle-orm";
 import { category, offer } from "@/db/schema";
 import { getDb } from "@/lib/db/client";
@@ -49,10 +49,7 @@ export async function loadPublicOffers(db: Db): Promise<PublicOffer[]> {
 }
 
 export async function getPublicOffers(): Promise<PublicOffer[]> {
-  "use cache";
-  cacheTag("offers");
-  cacheLife("minutes"); // admin saves expire it at once; this only bounds how stale a usage count can get
-  return loadPublicOffers(getDb());
+  return cached("offers:public", () => loadPublicOffers(getDb())); // 30 s; admin saves clear it (lib/menu-cache.ts)
 }
 
 export const toFacts = (o: PublicOffer): OfferFacts => ({

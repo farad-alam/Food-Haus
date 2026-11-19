@@ -1,4 +1,4 @@
-import { cacheLife, cacheTag } from "next/cache";
+import { cached } from "@/lib/local-cache";
 import { asc } from "drizzle-orm";
 import { closure, openingHours } from "@/db/schema";
 import { getDb } from "@/lib/db/client";
@@ -27,8 +27,5 @@ export async function loadSchedule(db: Db): Promise<Schedule> {
 }
 
 export async function getSchedule(): Promise<Schedule> {
-  "use cache";
-  cacheTag("settings");
-  cacheLife("minutes");
-  return loadSchedule(getDb());
+  return cached("settings:schedule", () => loadSchedule(getDb())); // 30 s; settings saves clear it (lib/menu-cache.ts)
 }
