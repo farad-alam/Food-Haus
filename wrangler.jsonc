@@ -20,12 +20,12 @@
   //   wrangler d1 create food-haus-tag-cache
   // and paste the returned ids here before the first deploy.
   "kv_namespaces": [
-    { "binding": "NEXT_INC_CACHE_KV", "id": "local-placeholder-replace-before-deploy" }
+    { "binding": "NEXT_INC_CACHE_KV", "id": "1aeee6c43b8c478c991141bd8ce08f30" }
   ],
   // PREVIEW BRANCH ONLY: the R2 photo bucket and Images bindings are left out on purpose, so a preview needs
   // neither (photo upload does not work here). main keeps them; see docs/preview-deploy.md.
   "d1_databases": [
-    { "binding": "NEXT_TAG_CACHE_D1", "database_name": "food-haus-tag-cache", "database_id": "local-placeholder-replace-before-deploy" }
+    { "binding": "NEXT_TAG_CACHE_D1", "database_name": "food-haus-tag-cache", "database_id": "90ac43cc-9248-4ced-8056-ad04b8e92518" }
   ],
   "env": {
     "production": {
