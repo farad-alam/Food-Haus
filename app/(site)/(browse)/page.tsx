@@ -42,9 +42,21 @@ export default async function Home() {
   const photoCloud = getPhotoCloudName();
   const home = await getHomeImages();
 
-  // Hero photo (R5.1, R10.5): the uploaded hero image, else the built-in one (which blends into the dark band).
-  const hero = photoCloud && home.hero ? home.hero : null;
-  if (hero) preload(photoUrl(photoCloud, hero.key, 800), { as: "image", imageSrcSet: photoSrcSet(photoCloud, hero.key), imageSizes: "(min-width: 768px) 480px, 100vw", fetchPriority: "high" });
+  // Hero background (R5.1, R10.5): the image uploaded in Settings (Home page images, hero), else the built-in
+  // one. It is the page's largest element, so it is preloaded; AVIF-only preload is safe (a browser that cannot
+  // use AVIF ignores a preload whose type it does not support and falls back to the <picture> sources).
+  const heroBg = photoCloud && home.hero ? home.hero : null;
+  if (heroBg) preload(bannerUrl(photoCloud, heroBg.key, 1024), { as: "image", imageSrcSet: bannerSrcSet(photoCloud, heroBg.key), imageSizes: "100vw", fetchPriority: "high" });
+  else preload(`${HOME_DEFAULTS.hero.base}-1024.avif`, { as: "image", type: "image/avif", imageSrcSet: HOME_DEFAULTS.hero.widths.map((w) => `${HOME_DEFAULTS.hero.base}-${w}.avif ${w}w`).join(", "), imageSizes: "(min-width: 768px) 1100px, 100vw", fetchPriority: "high" });
+
+  /** The hero background at one of its two placements (desktop layer / phone strip). Decorative: the headline says everything. */
+  const heroBgImg = (className: string, sizes: string, eager?: boolean) =>
+    heroBg ? (
+      // eslint-disable-next-line @next/next/no-img-element -- already sized by Cloudinary transformations
+      <img src={bannerUrl(photoCloud, heroBg.key, 1024)} srcSet={bannerSrcSet(photoCloud, heroBg.key)} sizes={sizes} alt="" width={1600} height={900} loading={eager ? "eager" : "lazy"} fetchPriority={eager ? "high" : undefined} decoding="async" className={className} />
+    ) : (
+      <FoodPicture image={HOME_DEFAULTS.hero} sizes={sizes} loading={eager ? "eager" : "lazy"} fetchPriority={eager ? "high" : undefined} imgClassName={className} />
+    );
 
   const slugOf = new Map(menu.categories.map((c) => [c.name, c.slug]));
 
@@ -52,11 +64,19 @@ export default async function Home() {
     <main className="bg-ink">
       <RestaurantJsonLd menu={menu} hours={hours} contact={contact} />
 
-      {/* ---- HERO (near black, warm glow) ---------------------------------------------------- */}
-      <section className="relative overflow-hidden">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-28 -top-28 h-96 w-96 rounded-full bg-brand/15 blur-3xl" />
-        <div className="mx-auto grid max-w-5xl items-center gap-8 px-4 pb-10 pt-8 sm:pt-14 md:grid-cols-2">
-          <div>
+      {/* ---- HERO (full-bleed background: burger right, text left over the dark smoke) --------- */}
+      <section className="relative overflow-hidden bg-ink">
+        {/* The background layer (tablet and up): anchored to the right and capped at 1100 px wide so the
+            1024 px source is never stretched soft; its black edges and the gradient melt it into the page. */}
+        <div aria-hidden="true" className="absolute inset-0 hidden md:block">
+          <div className="absolute inset-y-0 right-0 w-full max-w-[1100px]">
+            {heroBgImg("h-full w-full object-cover object-right", "(min-width: 768px) 1100px, 100vw", true)}
+          </div>
+          {/* Left-to-right wash: solid ink under the text, clear over the burger (AA contrast at every width). */}
+          <div className="absolute inset-0 bg-gradient-to-r from-ink from-35% via-ink/75 via-55% to-transparent" />
+        </div>
+        <div className="relative mx-auto max-w-5xl px-4 pb-6 pt-8 sm:pt-14 md:flex md:min-h-[480px] md:items-center md:pb-14 lg:min-h-[540px]">
+          <div className="md:max-w-xl">
             <p className="mb-2 inline-block rounded-full border border-ok px-3 py-1 text-xs font-bold uppercase tracking-wide text-ok">100% Halal</p>
             {/* R5.1: open or closed with the next opening time; fixed-height row so it streaming in shifts nothing (R10.8) */}
             <div className="mb-3 min-h-[1.5rem]">
@@ -79,26 +99,12 @@ export default async function Home() {
               <li className="flex items-center gap-2"><MiniIcon kind="menu" className="h-5 w-5 text-brand" /> No account needed</li>
             </ul>
           </div>
-          <div className="relative">
-            {hero ? (
-              // Fixed 4:3 box, explicit size, high fetch priority: the largest thing on the page must not shift it (R10.5, R10.8).
-              // eslint-disable-next-line @next/next/no-img-element -- already sized by Cloudinary transformations
-              <img
-                src={photoUrl(photoCloud, hero.key, 800)}
-                srcSet={photoSrcSet(photoCloud, hero.key)}
-                sizes="(min-width: 768px) 480px, 100vw"
-                alt={hero.alt}
-                width={1200}
-                height={900}
-                fetchPriority="high"
-                decoding="async"
-                className="aspect-[4/3] w-full rotate-1 rounded-3xl border-4 border-surface-2 bg-surface-2 object-cover shadow-2xl"
-              />
-            ) : (
-              // The built-in hero sits straight on the dark band (its background is black), so no frame.
-              <FoodPicture image={HOME_DEFAULTS.hero} sizes="(min-width: 768px) 480px, 100vw" loading="eager" fetchPriority="high" imgClassName="mx-auto w-full max-w-md md:max-w-none" />
-            )}
-          </div>
+        </div>
+        {/* On phones the text comes first on plain ink, then the picture below it, fading in from the ink above
+            so there is no box edge; the burger (right of frame) stays in view. */}
+        <div aria-hidden="true" className="relative -mt-2 md:hidden">
+          {heroBgImg("aspect-[1024/572] w-full object-cover object-right", "100vw", true)}
+          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-ink to-transparent" />
         </div>
       </section>
 

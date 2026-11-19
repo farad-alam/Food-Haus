@@ -316,7 +316,7 @@ function HomeImagesSection() {
   return (
     <Section id="homeimg-h" title="Home page images" hint="The big hero photo, the wide banner above the popular items, and one round photo per menu category. Until you upload one, the page shows its built-in picture, so nothing is ever broken or empty. JPEG, PNG or WebP, at least 1200 x 900 pixels.">
       <div className="space-y-5">
-        <HomeImageSlot label="Hero photo (the big photo at the top of the home page)" slot={{ slot: "hero" }} image={data.images.hero?.key ?? null} alt={data.images.hero?.alt ?? ""} cloud={data.photoCloud} shape="card" onChanged={load} />
+        <HomeImageSlot label="Hero background (the full-width photo behind the headline; food on the RIGHT, dark on the left so the words stay readable)" slot={{ slot: "hero" }} image={data.images.hero?.key ?? null} cloud={data.photoCloud} shape="wide" onChanged={load} />
         <HomeImageSlot label="Wide banner (above the popular items)" slot={{ slot: "banner" }} image={data.images.banner} cloud={data.photoCloud} shape="wide" onChanged={load} />
         <div>
           <h3 className="font-bold">Category photos (the round tiles)</h3>
@@ -333,9 +333,8 @@ function HomeImagesSection() {
   );
 }
 
-function HomeImageSlot({ label, slot, image, alt, cloud, shape, onChanged }: { label: string; slot: { slot: "hero" } | { slot: "banner" } | { slot: "category"; slug: string }; image: string | null; alt?: string; cloud: string | null; shape: "round" | "card" | "wide"; onChanged: () => void }) {
+function HomeImageSlot({ label, slot, image, cloud, shape, onChanged }: { label: string; slot: { slot: "hero" } | { slot: "banner" } | { slot: "category"; slug: string }; image: string | null; cloud: string | null; shape: "round" | "wide"; onChanged: () => void }) {
   const [msg, setMsg] = useState<{ text: string; good?: boolean }>({ text: "" });
-  const [altText, setAltText] = useState(alt ?? "");
   const [busy, setBusy] = useState(false);
   async function send(form: FormData, done: string) {
     setBusy(true);
@@ -368,20 +367,13 @@ function HomeImageSlot({ label, slot, image, alt, cloud, shape, onChanged }: { l
       <div className="mt-2 flex flex-wrap items-start gap-4">
         {cloud && image ? (
           // eslint-disable-next-line @next/next/no-img-element -- already sized by Cloudinary transformations
-          <img src={shape === "wide" ? bannerUrl(cloud, image, 400) : photoUrl(cloud, image, 400)} alt="" width={shape === "round" ? 96 : 192} height={shape === "round" ? 96 : shape === "wide" ? 108 : 144} className={shape === "round" ? "h-24 w-24 rounded-full object-cover" : shape === "wide" ? "aspect-video w-48 rounded-lg object-cover" : "aspect-[4/3] w-48 rounded-lg object-cover"} />
+          <img src={shape === "wide" ? bannerUrl(cloud, image, 400) : photoUrl(cloud, image, 400)} alt="" width={shape === "round" ? 96 : 192} height={shape === "round" ? 96 : 108} className={shape === "round" ? "h-24 w-24 rounded-full object-cover" : "aspect-video w-48 rounded-lg object-cover"} />
         ) : (
           <p className="text-sm text-muted">No photo uploaded: the page shows its built-in picture.</p>
         )}
         <div className="min-w-0 grow space-y-2">
-          <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} className="block min-h-[44px] w-full text-sm" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; const form = new FormData(); form.set("file", f); if (slot.slot === "hero") form.set("alt", altText); void send(form, "Photo saved."); }} />
-          {slot.slot === "hero" && (
-            <label className="block text-sm text-muted">
-              Describe the hero photo for people who cannot see it
-              <input className={`${field} mt-1 block w-full`} value={altText} maxLength={200} onChange={(e) => setAltText(e.target.value)} />
-            </label>
-          )}
+          <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} className="block min-h-[44px] w-full text-sm" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; const form = new FormData(); form.set("file", f); void send(form, "Photo saved."); }} />
           <div className="flex flex-wrap gap-2">
-            {slot.slot === "hero" && image && <button type="button" className="btn btn-ghost !min-h-[40px] !px-3 !py-1 text-sm" disabled={busy} onClick={() => { const form = new FormData(); form.set("alt", altText); void send(form, "Description saved."); }}>Save description</button>}
             {image && <button type="button" className="btn btn-ghost !min-h-[40px] !px-3 !py-1 text-sm" disabled={busy} onClick={remove}>Remove photo</button>}
           </div>
         </div>

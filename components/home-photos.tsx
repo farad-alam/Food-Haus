@@ -11,7 +11,8 @@ export type StaticImage = { base: string; widths: number[]; width: number; heigh
 const cat = (slug: string): StaticImage => ({ base: `/home/cat-${slug}`, widths: [128, 256], width: 256, height: 256 });
 
 export const HOME_DEFAULTS = {
-  hero: { base: "/home/hero", widths: [400, 800, 1024], width: 1024, height: 1024 } as StaticImage,
+  /** The hero BACKGROUND: burger on the right third, dark smoke left, black edges that melt into the page. */
+  hero: { base: "/home/hero-bg", widths: [640, 1024], width: 1024, height: 572 } as StaticImage,
   banner: { base: "/home/banner", widths: [640, 1024], width: 1024, height: 572 } as StaticImage,
   categories: {
     burgers: cat("burgers"),
