@@ -3,7 +3,7 @@
 For the owner and staff. The 30-minute walkthrough (R9.14) goes through this together; this page is what to keep on the counter. Address of the admin area: your website address followed by `/admin`.
 
 ## Opening
-1. Sign in at `/admin`. Owners and managers need the 6-digit code from their phone app as well as the password. Lost your phone? Use one of your recovery codes, then make new ones under **Account**.
+1. Sign in at `/admin` with your email and password. There is no code to type. (You are signed out after 30 minutes of inactivity if you are an owner or manager; just sign in again.)
 2. On the tablet that stays on the counter, open **Orders** and tap **Start taking orders**. This switches the sound on (the browser will not play sound until someone taps) and keeps the screen awake.
 3. Look at the top of the page. A yellow bar saying allergen information is not complete means the menu is not ready for customers (owners and managers only see it).
 4. Check **Settings**: opening hours for today, and that the **Pause orders** switch is off.
@@ -26,9 +26,9 @@ For the owner and staff. The 30-minute walkthrough (R9.14) goes through this tog
 - **Offers**: create offers and promo codes, with start and end dates.
 - **History**: search past orders by name, phone or order number. Owners and managers can export to CSV (it contains customers' details, so handle it with care).
 - **Refunds**: for the first release these are done in the Stripe Dashboard, not on this site. If you reject a paid card order, the board tells you to refund it there.
-- **A new member of staff**: the owner creates their account; they open the one-time setup link and enter their password to set up their phone app.
+- **A new member of staff**: the owner creates their account and gives them the sign-in address (`/admin/login`) and their password by a different channel. They sign in at once; there is nothing else to set up.
 
 ## If something looks wrong
-- Cannot sign in: wait 15 minutes after several wrong tries, or use "Forgot your password?".
+- Cannot sign in: wait 15 minutes after several wrong tries, or use "Forgot your password?" (it only works once the shop's email service is set up; until then ask the developer for a password reset, see the owner checklist).
 - An order looks wrong or missing: History, search the order number.
 - Anything else: contact the developer.

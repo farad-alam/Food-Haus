@@ -4,7 +4,9 @@ import * as schema from "../db/schema";
 import { issueSetupToken } from "../lib/auth/enrolment";
 import { PgAdminStore } from "../lib/auth/pg-store";
 import { requiresTwoStep } from "../lib/auth/rbac";
+import { twoStepEnabled } from "../lib/auth/config";
 
+// Only useful while two-step login is switched on (ADMIN_TWO_STEP=on); with it off nobody needs a link.
 // Prints a fresh one-time 2FA setup link (valid 24 hours) for an owner or manager.
 //   SECRET_BOX_KEY=... DATABASE_URL=... npm run admin:setup-link -- someone@example.com
 // For someone who lost BOTH their phone and their recovery codes, add --reset: it removes
@@ -18,6 +20,8 @@ const key = process.env.SECRET_BOX_KEY;
 const url = process.env.DATABASE_URL;
 if (!email) throw new Error("Usage: npm run admin:setup-link -- <email> [--reset]");
 if (!key || !url) throw new Error("SECRET_BOX_KEY and DATABASE_URL must be set.");
+
+if (!twoStepEnabled()) throw new Error("Two-step login is switched off (ADMIN_TWO_STEP is not set to on), so there is nothing to set up: people sign in with email and password. Set ADMIN_TWO_STEP=on to use setup links.");
 
 const store = new PgAdminStore(drizzle(neon(url), { schema }), key);
 const user = await store.findUserByEmail(email.trim().toLowerCase());

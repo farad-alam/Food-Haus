@@ -53,6 +53,7 @@ export function LoginForm() {
   return (
     <form onSubmit={submit} className="space-y-4">
       {notice && <p role="status" className="rounded-lg border border-line bg-surface p-3">{notice}</p>}
+      {step === "password" && <p className="text-muted">Enter your email and password.</p>}
       {step === "password" ? (
         <>
           <div>

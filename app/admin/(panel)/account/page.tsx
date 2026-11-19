@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { AccountSecurity } from "@/components/admin/twofa";
 import { adminStore } from "@/lib/admin/guard";
 import { requireAdminPage } from "@/lib/admin/page-auth";
+import { twoStepEnabled } from "@/lib/auth/config";
 import { requiresTwoStep } from "@/lib/auth/rbac";
 
 export const metadata: Metadata = { title: "My account", robots: { index: false } };
@@ -21,13 +22,19 @@ export default function AccountPage({ searchParams }: { searchParams: Promise<{ 
 async function Account({ searchParams }: { searchParams: Promise<{ recovery?: string }> }) {
   const user = await requireAdminPage("orders.view"); // every role may see its own page
   const store = adminStore();
-  const [rec, left] = [await store.findUserById(user.id), await store.countRecoveryCodes(user.id)];
+  // Two-step login is off by default (ADMIN_TWO_STEP): then there is no authenticator or recovery-code section.
+  const twoStep = twoStepEnabled();
+  const [rec, left] = twoStep ? [await store.findUserById(user.id), await store.countRecoveryCodes(user.id)] : [null, 0];
   const q = (await searchParams).recovery;
   const used = q !== undefined && /^\d{1,2}$/.test(q) ? Number(q) : null;
   return (
     <div className="mt-4">
       <p className="mb-4 text-muted">{user.email} · {user.role}</p>
-      <AccountSecurity applicable={requiresTwoStep(user.role)} enrolled={!!rec?.totpSecret} recoveryLeft={left} usedRecovery={used} />
+      {twoStep ? (
+        <AccountSecurity applicable={requiresTwoStep(user.role)} enrolled={!!rec?.totpSecret} recoveryLeft={left} usedRecovery={used} />
+      ) : (
+        <p>You sign in with your email and password.</p>
+      )}
     </div>
   );
 }

@@ -9,7 +9,7 @@ What the preview does NOT do: card payment, emails, reviews, analytics, the bot 
 1. **preflight**: stops with a plain message, before touching anything, if a variable is missing, `NEXT_PUBLIC_SITE_URL` is not an https address, or `wrangler.jsonc` still has placeholder cache ids.
 2. **migrate**: applies the database migrations (safe to repeat).
 3. **seed**: loads the 38 sample menu items only if the menu is empty (never overwrites).
-4. **bootstrap**: creates the first owner if no admin exists, or prints a fresh setup link if that owner has not finished setup. Never prints the password. Prints the one-time setup link in the build log.
+4. **bootstrap**: creates the first owner if no admin exists and prints the **login address** (`/admin/login`) in the build log: admin login is email and password only (owner decision, R9.2). Never prints the password. With the optional `ADMIN_TWO_STEP=on` it prints a one-time two-step setup link instead.
 5. **build**: `opennextjs-cloudflare build`. Then the dashboard's deploy command uploads the cache and the Worker.
 
 ## Dashboard settings
@@ -29,6 +29,7 @@ Build variables and secrets (Builds section):
 | `NEXT_PUBLIC_SITE_URL` | text | `https://food-haus.<account-subdomain>.workers.dev` |
 | `BOOTSTRAP_OWNER_EMAIL` | text | the owner's email |
 | `BOOTSTRAP_OWNER_PASSWORD` | secret | a password the owner chooses (12+ characters); delete it after first sign-in |
+| `ADMIN_TWO_STEP` | text, optional | leave unset (login = email + password). `on` asks owners and managers for an authenticator code as well |
 | `NODE_VERSION` | text | `22` |
 
 Runtime variables and secrets (on the Worker itself, Settings, Variables and Secrets, type **Secret**):

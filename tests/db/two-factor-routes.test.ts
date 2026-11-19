@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { inArray, like, or } from "drizzle-orm";
 import { adminUser, authEvent } from "@/db/schema";
 import { getDb } from "@/lib/db/client";
@@ -163,5 +163,24 @@ describe.skipIf(!enabled)("2FA setup and recovery (real database)", () => {
     expect((await login(post("/api/admin/login", { email, password: PASSWORD, totp: "<script>alert(1)</script>" }))).status).toBe(400);
     const res = await setupBegin(new Request(`${ORIGIN}/api/admin/2fa/setup/begin`, { method: "POST", headers: { "content-type": "text/plain", origin: ORIGIN }, body: "{}" }));
     expect(res.status).toBe(415);
+  });
+
+  it("with two-step switched OFF (the default) none of the authenticator routes work", async () => {
+    vi.stubEnv("ADMIN_TWO_STEP", "off");
+    try {
+      for (const [fn, path, body] of [
+        [setupBegin, "/api/admin/2fa/setup/begin", { token: setupToken, email, password: PASSWORD }],
+        [setupConfirm, "/api/admin/2fa/setup/confirm", { token: setupToken, email, password: PASSWORD, code: "123456" }],
+        [begin, "/api/admin/2fa/begin", { password: PASSWORD }],
+        [confirm, "/api/admin/2fa/confirm", { code: "123456" }],
+        [newCodes, "/api/admin/2fa/recovery-codes", { password: PASSWORD }],
+      ] as const) {
+        const res = await fn(post(path, body));
+        expect(res.status).toBe(403);
+        expect(await res.json()).toMatchObject({ ok: false, code: "TWO_STEP_OFF" });
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

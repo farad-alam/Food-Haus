@@ -135,7 +135,8 @@ Every one of these is shown on the live page as an amber **PLACEHOLDER** box and
 | Name | What it is | Where it comes from |
 | --- | --- | --- |
 | `DATABASE_URL` | Neon Postgres connection string (pooled) for the **production** database | Neon console. Use a new production database, not the test one used while building |
-| `SECRET_BOX_KEY` | Encrypts two-step-login secrets: `openssl rand -base64 32` | Generate once and **keep a copy in the password manager**: losing it locks every owner and manager out of two-step login |
+| `SECRET_BOX_KEY` | Encrypts two-step-login secrets: `openssl rand -base64 32` | Generate once and **keep a copy in the password manager**: losing it locks every owner and manager out of two-step login if you ever switch it on |
+| `ADMIN_TWO_STEP` (a plain variable, not a secret) | Leave it **unset: admin login is email and password only** (owner decision, R9.2). Set it to `on` to ask owners and managers for the authenticator code again | Cloudflare dashboard → Variables. Before switching it on, every owner and manager needs a setup link: `npm run admin:setup-link -- <email>` |
 | `STRIPE_SECRET_KEY` | A **restricted** live key limited to what the site needs (R8.8) | Stripe Dashboard. Test keys only in preview |
 | `STRIPE_WEBHOOK_SECRET` | Signing secret of the webhook endpoint | Stripe, after adding the endpoint (B2) |
 | `EMAIL_API_KEY` | Resend API key | Resend |
@@ -191,9 +192,13 @@ Not needed yet: `NEXT_PUBLIC_SANITY_*` (the blog is not built) and `EMAIL_API_UR
 - [ ] **One canonical address (R11.14):** redirect plain HTTP, the other host (with/without `www`) and any old Food Haus domain to the canonical address with a 301. Not in the code, because the domain is not decided
 - [ ] The admin login limit is keyed on Cloudflare's visitor-IP header, so the site must only be reached **through Cloudflare** (otherwise 20 failures from anyone lock everyone out)
 
+### B7b. Forgotten admin password (no email service yet)
+"Forgot your password?" emails a 30-minute single-use link, so it only works once an email service is configured (`EMAIL_API_KEY` and `EMAIL_FROM`; Resend's free plan is enough). **On this preview there is no email service, so there is no self-service reset yet.** What to do today: keep every admin password in the owner's password manager; if one is lost, ask the developer to reset it (the developer sets a new password directly in the database with the `npm run admin:create` password rules, and tells you the new one by a different channel; change it after signing in).
+- [ ] **Owner to decide, the safe option I recommend:** set up the email service (about 10 minutes, free) so the reset link works for everyone. Until then, an optional bridge: a one-time "recover owner" build variable pair (`ADMIN_RECOVERY_EMAIL`, `ADMIN_RECOVERY_PASSWORD`) that the next Cloudflare build reads once to set that owner's password and sign them out everywhere, which you then delete again. It needs your own Cloudflare dashboard (the real root of trust), no terminal, and is not built unless you ask for it
+
 ### B8. First accounts
-- [ ] Create the owner: `ADMIN_PASSWORD=… SECRET_BOX_KEY=… DATABASE_URL=… npm run admin:create -- owner@example.com owner`; it prints a **one-time setup link** (24 hours). Open it yourself first, with the password, before anyone else has access. Send the link and the password by **different channels**
-- [ ] Then the manager (`manager`) and the kitchen login (`kitchen`, no two-step login). `npm run admin:setup-link -- <email>` issues a new link; add `--reset` for someone who lost both phone and recovery codes
+- [ ] Create the owner: `ADMIN_PASSWORD=… SECRET_BOX_KEY=… DATABASE_URL=… npm run admin:create -- owner@example.com owner`; it prints the **login address** (`/admin/login`). Sign in yourself first before anyone else has access. Send each person their password and the address by **different channels** (with `ADMIN_TWO_STEP=on` it prints a one-time setup link instead)
+- [ ] Then the manager (`manager`) and the kitchen login (`kitchen`, no two-step login). (only with `ADMIN_TWO_STEP=on`: `npm run admin:setup-link -- <email>` issues a setup link; add `--reset` for someone who lost both phone and recovery codes)
 - [ ] The first owner's password is 12+ characters and not the example
 
 ---
@@ -203,7 +208,7 @@ Everything here was tested as far as it can be without the real service (fakes, 
 - [ ] **The scheduled job on Cloudflare's runtime:** the cron handler has been tested in code but never run on Cloudflare. After deploying, confirm a run in the Cloudflare dashboard succeeds every 5 minutes (unpaid card orders cancelled after 45 minutes, old counters tidied, daily sales email, 12-month contact clean-up)
 - [ ] **The real Google reviews** (B4)
 - [ ] **R2 and Images, for real:** upload a phone photo with a rotation and GPS tag: it must come out the right way up, centred, with **no GPS or EXIF**, as a small WebP; check the real Images service's limits with an 8 MB, 12-megapixel photo; confirm replacing and removing a photo deletes the objects in the bucket; confirm the `PHOTOS` and `IMAGES` bindings resolve inside the deployed app (the whole app was not run on Cloudflare's runtime here); confirm `/media/...` is cached at the edge
-- [ ] **The whole app on Cloudflare's runtime:** a full pass through browse, basket, checkout (cash and card), order page, admin login with two-step, order board, menu and settings
+- [ ] **The whole app on Cloudflare's runtime:** a full pass through browse, basket, checkout (cash and card), order page, admin login (email and password), order board, menu and settings
 - [ ] **Two-step login speed on Workers:** password checking measured about 290 ms in Node; re-measure against the Worker CPU limit (staff logins only)
 - [ ] **Stripe end to end in test mode,** including Pay by Bank (Stripe's documentation does not say which event it sends) and Apple Pay / Google Pay; webhook delivered and the order marked paid; alerts on the log lines `PAID ORDER NOT PENDING` and `amount mismatch`
 - [ ] **Order emails really arrive** (customer confirmation, shop alert, daily sales report) from the shop's domain, not in spam

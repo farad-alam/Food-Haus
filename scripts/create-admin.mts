@@ -5,6 +5,7 @@ import { createAdminUser } from "../lib/auth/pg-store";
 import { PgAdminStore } from "../lib/auth/pg-store";
 import { issueSetupToken } from "../lib/auth/enrolment";
 import { passwordHasher, validatePasswordPolicy } from "../lib/auth/password";
+import { twoStepEnabled } from "../lib/auth/config";
 
 // Creates an admin user. The password is read from ADMIN_PASSWORD (never from
 // argv, which shows up in process listings and shell history).
@@ -19,16 +20,19 @@ const problem = validatePasswordPolicy(password, { email });
 if (problem) throw new Error(problem);
 
 const db = drizzle(neon(url), { schema });
-// Owners and managers have no authenticator yet: they enrol themselves through a one-time
-// link (24 hours) plus their password, so no 2FA secret is ever printed or typed into a terminal.
+// Admin login is email + password only unless ADMIN_TWO_STEP is switched on. When it is on, owners and managers
+// have no authenticator yet and enrol themselves through a one-time link (24 hours) plus their password, so no
+// 2FA secret is ever printed or typed into a terminal.
 const userId = await createAdminUser(db, key, {
   email,
   passwordHash: await passwordHasher.hash(password),
   role: role as "owner" | "manager" | "kitchen",
 });
 console.log(`Created ${role} ${email}.`);
-if (role !== "kitchen") {
+const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+if (!twoStepEnabled()) {
+  console.log(`They sign in with that email and their password at:\n${site}/admin/login`);
+} else if (role !== "kitchen") {
   const { token } = await issueSetupToken(new PgAdminStore(db, key), userId, new Date());
-  const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
   console.log(`Send them this one-time link (valid 24 hours; they also need their password):\n${site}/admin/setup/${token}`);
 }

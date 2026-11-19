@@ -1,3 +1,4 @@
+import { twoStepEnabled } from "./config";
 import { requiresTwoStep } from "./rbac";
 import { generateRecoveryCodes, hashRecoveryCode, looksLikeRecoveryCode } from "./recovery";
 import {
@@ -123,22 +124,29 @@ export async function confirmEnrolment(
 
 export type ReauthResult = { ok: true; usedRecoveryCode: boolean } | { ok: false; reason: "locked" | "invalid_credentials" | "invalid_code" };
 
-/** Password AND (current authenticator code OR a recovery code). Failures count towards the sign-in lockout. */
+/**
+ * Confirms it is really the signed-in person before a sensitive change. With two-step login ON: the password AND
+ * (a current authenticator code OR a recovery code). With it OFF (the default): the current password only.
+ * Failures count towards the sign-in lockout either way.
+ */
 export async function reauthenticate(
   store: AdminStore,
   user: AdminUserRecord,
-  input: { password: string; code: string },
+  input: { password: string; code?: string },
   ip: string,
   now: Date,
   hasher: PasswordHasher = passwordHasher,
+  options: { twoStep?: boolean } = {},
 ): Promise<ReauthResult> {
+  const twoStep = options.twoStep ?? twoStepEnabled();
   if (await isLocked(store, "login", user.email, ip, now)) return { ok: false, reason: "locked" };
   const fail = async (reason: "invalid_credentials" | "invalid_code"): Promise<ReauthResult> => {
     await recordFailure(store, "login", user.email, ip, now);
     return { ok: false, reason };
   };
   if (!(await checkPassword(hasher, user, input.password))) return fail("invalid_credentials");
-  if (!user.totpSecret) return fail("invalid_code");
+  if (!twoStep) return { ok: true, usedRecoveryCode: false };
+  if (!user.totpSecret || !input.code) return fail("invalid_code");
   if (looksLikeRecoveryCode(input.code)) {
     if (!(await store.consumeRecoveryCode(user.id, await hashRecoveryCode(input.code), now))) return fail("invalid_code");
     return { ok: true, usedRecoveryCode: true };

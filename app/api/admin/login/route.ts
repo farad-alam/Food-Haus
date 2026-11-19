@@ -4,9 +4,9 @@ import { cookieName, sessionCookie } from "@/lib/admin/cookie";
 import { login } from "@/lib/auth/service";
 import { verifyTurnstile } from "@/lib/turnstile";
 
-// POST /api/admin/login (R9.1, R9.2, R13.3). Two-step for owner/manager: the
-// first request returns TOTP_REQUIRED once the password is right, the second
-// repeats email + password with the 6-digit code.
+// POST /api/admin/login (R9.1, R9.2, R13.3). Email and password for every role, and the session starts at once.
+// Only when ADMIN_TWO_STEP is switched on (off by default) is the owner/manager's code asked for: the first request
+// then returns TOTP_REQUIRED once the password is right, the second repeats email + password with the code.
 const body = z.strictObject({
   email: z.string().trim().min(1).max(254),
   password: z.string().min(1).max(200),

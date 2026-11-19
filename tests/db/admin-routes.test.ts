@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray, like, or } from "drizzle-orm";
 import { adminUser, auditLog, authEvent, order, orderItem } from "@/db/schema";
 import { getDb } from "@/lib/db/client";
@@ -114,6 +114,27 @@ describe.skipIf(!enabled)("admin routes (real database)", () => {
       expect(first.body).toMatchObject({ ok: true, role: "owner" });
       const replay = await signIn(emails.owner, { totp: code });
       expect(replay.body).toMatchObject({ ok: false, code: "INVALID_TOTP" });
+    });
+
+    it("two-step OFF (the shipped default): an owner with an enrolled authenticator signs in with email and password only", async () => {
+      vi.stubEnv("ADMIN_TWO_STEP", "off");
+      try {
+        const r = await signIn(emails.owner);
+        expect(r.body).toMatchObject({ ok: true, role: "owner" });
+        expect(r.res.headers.get("set-cookie")).toMatch(/HttpOnly/i);
+        expect((await signIn(emails.owner, { totp: "000000" })).body).toMatchObject({ ok: true }); // a code is ignored, never required
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it("two-step ON: the same owner is asked for the code", async () => {
+      vi.stubEnv("ADMIN_TWO_STEP", "on");
+      try {
+        expect((await signIn(emails.owner)).body).toMatchObject({ ok: false, code: "TOTP_REQUIRED" });
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
 
     it("locks an account+IP after repeated failures (429)", async () => {

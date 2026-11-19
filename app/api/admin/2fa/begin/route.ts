@@ -1,15 +1,17 @@
 import { z } from "zod";
 import { adminStore, guard, jsonResponse } from "@/lib/admin/guard";
-import { clientIp, MESSAGES, readJson, SERVER_ERROR } from "@/lib/admin/twofa-http";
+import { clientIp, MESSAGES, readJson, SERVER_ERROR, twoStepOffResponse } from "@/lib/admin/twofa-http";
 import { beginEnrolment, reauthenticate } from "@/lib/auth/enrolment";
 import { groupSecret, qrDataUri } from "@/lib/auth/qr";
 import { requiresTwoStep } from "@/lib/auth/rbac";
 
 // POST /api/admin/2fa/begin: signed in, replacing the authenticator. Needs the password
 // AND a current code (or a recovery code). Nothing changes until /confirm succeeds.
-const body = z.strictObject({ password: z.string().min(1).max(200), code: z.string().trim().min(1).max(20) });
+const body = z.strictObject({ password: z.string().min(1).max(200), code: z.string().trim().min(1).max(20).optional() });
 
 export async function POST(request: Request) {
+  const off = twoStepOffResponse();
+  if (off) return off;
   const g = await guard(request, "orders.view");
   if ("response" in g) return g.response;
   const r = await readJson(request, body);

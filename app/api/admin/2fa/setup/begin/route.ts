@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { adminStore, jsonResponse } from "@/lib/admin/guard";
-import { clientIp, MESSAGES, readJson, SERVER_ERROR } from "@/lib/admin/twofa-http";
+import { clientIp, MESSAGES, readJson, SERVER_ERROR, twoStepOffResponse } from "@/lib/admin/twofa-http";
 import { beginEnrolment, checkSetupCredentials } from "@/lib/auth/enrolment";
 import { groupSecret, qrDataUri } from "@/lib/auth/qr";
 
@@ -13,6 +13,8 @@ const body = z.strictObject({
 });
 
 export async function POST(request: Request) {
+  const off = twoStepOffResponse();
+  if (off) return off;
   const r = await readJson(request, body);
   if ("response" in r) return r.response;
   try {

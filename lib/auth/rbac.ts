@@ -86,7 +86,12 @@ export function canAccessPath(role: Role | null | undefined, pathname: string): 
   return needed === "owner-only" ? role === "owner" : can(role, needed);
 }
 
-/** Roles that must use two-step login (R9.2). Kitchen's always-on board is exempt. */
+/** Roles that use two-step login WHEN it is switched on (ADMIN_TWO_STEP; off by default). Kitchen's always-on board is exempt. */
 export function requiresTwoStep(role: Role): boolean {
+  return role === "owner" || role === "manager";
+}
+
+/** Roles that are signed out after 30 minutes of inactivity (R9.2). Independent of the two-step setting. */
+export function hasIdleTimeout(role: Role): boolean {
   return role === "owner" || role === "manager";
 }

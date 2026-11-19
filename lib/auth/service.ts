@@ -1,4 +1,5 @@
-import { requiresTwoStep, type Role } from "./rbac";
+import { twoStepEnabled } from "./config";
+import { hasIdleTimeout, requiresTwoStep, type Role } from "./rbac";
 import { passwordHasher, validatePasswordPolicy, type PasswordHasher } from "./password";
 import { verifyTotp } from "./totp";
 import { hashRecoveryCode, looksLikeRecoveryCode } from "./recovery";
@@ -147,7 +148,10 @@ export async function login(
   input: { email: string; password: string; totp?: string; ip: string },
   now: Date,
   hasher: PasswordHasher = passwordHasher,
+  options: { twoStep?: boolean } = {},
 ): Promise<LoginResult> {
+  // With ADMIN_TWO_STEP off (the default) the code step never happens, for any role.
+  const twoStep = options.twoStep ?? twoStepEnabled();
   const email = normEmail(input.email);
   const keys = loginKeys(email, input.ip);
   const since = new Date(now.getTime() - LOGIN_WINDOW_MS);
@@ -176,7 +180,7 @@ export async function login(
   const passwordOk = await hasher.verify(input.password, user ? user.passwordHash : await dummyHash(hasher));
   if (!user || user.disabled || !passwordOk) return fail("invalid_credentials");
 
-  if (requiresTwoStep(user.role)) {
+  if (twoStep && requiresTwoStep(user.role)) {
     if (!user.totpSecret) return { ok: false, reason: "totp_enrolment_required" };
     if (!input.totp) return { ok: false, reason: "totp_required" }; // not counted: password alone was right
     if (looksLikeRecoveryCode(input.totp)) {
@@ -194,7 +198,7 @@ export async function login(
   if (hasher.needsRehash(user.passwordHash)) await store.setPasswordHash(user.id, await hasher.hash(input.password));
 
   const token = generateToken();
-  const lifetime = requiresTwoStep(user.role) ? OWNER_MANAGER_ABSOLUTE_MS : KITCHEN_ABSOLUTE_MS;
+  const lifetime = hasIdleTimeout(user.role) ? OWNER_MANAGER_ABSOLUTE_MS : KITCHEN_ABSOLUTE_MS;
   const expiresAt = new Date(now.getTime() + lifetime);
   await store.createSession({ tokenHash: await hashToken(token), userId: user.id, createdAt: now, lastSeenAt: now, expiresAt });
   return {
@@ -237,7 +241,7 @@ export async function authenticate(
     await store.deleteSession(tokenHash);
     return { ok: false, reason: "disabled" };
   }
-  if (requiresTwoStep(user.role) && now.getTime() - session.lastSeenAt.getTime() > OWNER_MANAGER_IDLE_MS) {
+  if (hasIdleTimeout(user.role) && now.getTime() - session.lastSeenAt.getTime() > OWNER_MANAGER_IDLE_MS) {
     await store.deleteSession(tokenHash);
     return { ok: false, reason: "idle_timeout" };
   }

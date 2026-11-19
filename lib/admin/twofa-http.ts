@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { twoStepEnabled } from "@/lib/auth/config";
 import { jsonResponse, trustedOrigin } from "./guard";
 
 /** Shared request checks for the 2FA routes: same-origin, JSON, small body, schema. */
@@ -28,3 +29,7 @@ export const MESSAGES = {
   no_pending: "That QR code has expired. Start again to get a new one.",
   link_used: "This setup link has already been used. Ask the owner for a new one.",
 } as const;
+
+/** The authenticator routes exist only while two-step login is switched on (ADMIN_TWO_STEP; off by default). */
+export const twoStepOffResponse = (): Response | null =>
+  twoStepEnabled() ? null : jsonResponse(403, { ok: false, code: "TWO_STEP_OFF", message: "Two-step login is switched off. You sign in with your email and password." });

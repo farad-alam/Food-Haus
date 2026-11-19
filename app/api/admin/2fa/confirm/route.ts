@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { adminStore, guard, jsonResponse, secureDeployment } from "@/lib/admin/guard";
 import { cookieName, parseCookie } from "@/lib/admin/cookie";
-import { MESSAGES, readJson, SERVER_ERROR } from "@/lib/admin/twofa-http";
+import { MESSAGES, readJson, SERVER_ERROR, twoStepOffResponse } from "@/lib/admin/twofa-http";
 import { confirmEnrolment } from "@/lib/auth/enrolment";
 import { requiresTwoStep } from "@/lib/auth/rbac";
 import { hashToken } from "@/lib/auth/service";
@@ -11,6 +11,8 @@ import { hashToken } from "@/lib/auth/service";
 const body = z.strictObject({ code: z.string().trim().min(1).max(20) });
 
 export async function POST(request: Request) {
+  const off = twoStepOffResponse();
+  if (off) return off;
   const g = await guard(request, "orders.view");
   if ("response" in g) return g.response;
   const r = await readJson(request, body);
