@@ -46,3 +46,11 @@ The KV namespace and D1 database ids in `wrangler.jsonc` are placeholders. The b
 
 ## When the preview is no longer needed
 Delete the Worker and the KV namespace and D1 database, and delete or rotate the Neon database. The preview `SECRET_BOX_KEY` and `CRON_SECRET` are throwaway: never reuse them for the real launch.
+
+## Known problem fixed on this branch: pages hung with Cache Components on
+Symptom on the first preview: Cloudflare Error 1101 and "The Workers runtime canceled this request because it detected that your Worker's code had hung" on every page that was not served straight from the build-time cache (it looked fine right after a deploy and broke once the 1-minute revalidation window passed). A warning that Next.js cannot guarantee Cache Components because of the runtime's `setTimeout` accompanied it.
+- Reproduced locally in Cloudflare's runtime (`wrangler dev --local` on the built worker): every page hangs, API routes work.
+- It does not depend on the KV or D1 cache, the database, or the password code.
+- `next.config.ts` on this branch turns Cache Components off (and keeps `use cache` through `experimental.useCache`). Then every page renders, also after the revalidation window.
+- `main` still has Cache Components on, so **`main` will hit this on Cloudflare** until the cause is fixed upstream or by an upgrade (newer Next.js and OpenNext releases exist and were not tried). Do not deploy `main` as it is.
+- Cost: pages are rendered per request instead of served as prerendered shells, so they are slower than the design intends (R10.3). Acceptable for a preview.

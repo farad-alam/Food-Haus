@@ -34,8 +34,16 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
+  // PREVIEW BRANCH ONLY. On main this is `cacheComponents: true` + `partialPrefetching: true`.
+  // With Cache Components on, EVERY page that has to be rendered (not served from the build-time cache) hangs
+  // on Cloudflare Workers ("the Workers runtime canceled this request because it detected that your Worker's
+  // code had hung", Error 1101), reproduced in Cloudflare's local runtime with the built worker: all pages hang,
+  // route handlers work, and it makes no difference whether the cache, database or password code is involved.
+  // Off, the same build renders every page correctly, including after the cache window. `use cache` (menu,
+  // schedule, notice, contact, offers) stays on through experimental.useCache; pages are rendered per request
+  // instead of being prerendered shells, so they are slower than main intends. See docs/preview-deploy.md.
+  cacheComponents: false,
+  experimental: { useCache: true },
   poweredByHeader: false,
   turbopack: {
     rules: {
