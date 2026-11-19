@@ -215,6 +215,8 @@ export const settings = pgTable("settings", {
   cashDailyCapPerPhone: integer("cash_daily_cap_per_phone").notNull().default(3), // R6.15
   cashDailyCapPerIp: integer("cash_daily_cap_per_ip").notNull().default(5), // R6.15
   contact: jsonb("contact").$type<Record<string, string | null>>().notNull().default({}), // shop contact and company details (lib/contact.ts); {} = not yet confirmed by the owner
+  // Home page images (R5.1): Cloudinary public ids for the hero and the category tiles (lib/home-images.ts). {} = none uploaded yet.
+  homeImages: jsonb("home_images").$type<Record<string, unknown>>().notNull().default({}),
 });
 
 export const adminUser = pgTable("admin_user", {

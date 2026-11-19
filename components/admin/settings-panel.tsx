@@ -9,6 +9,7 @@ import { api, failMessage, field, Msg, Section } from "./ui";
 const MON_FIRST = [1, 2, 3, 4, 5, 6, 0];
 import type { ClosureView, General, SettingsView, ZoneRow } from "@/lib/admin/settings";
 import { phoneDisplay, type Contact } from "@/lib/contact-format";
+import { bannerUrl, photoUrl } from "@/lib/photos/keys";
 
 // Settings (R9.9, R9.10): pause switch, opening hours, closure days, prep time
 // and cash limits, delivery zones. The server re-validates everything; the
@@ -47,6 +48,7 @@ export function SettingsPanel() {
       <ClosuresSection closures={view.closures} onChanged={load} />
       <GeneralSection general={view.general} onSaved={load} />
       <ContactSection contact={view.contact} confirmed={view.contactConfirmed} onSaved={load} />
+      <HomeImagesSection />
       <NoticeSection general={view.general} onSaved={load} />
       <ZonesSection zones={view.zones} onChanged={load} />
     </div>
@@ -281,6 +283,111 @@ function ContactSection({ contact, confirmed, onSaved }: { contact: Contact; con
       <button type="button" className="btn btn-primary mt-3 w-full sm:w-auto" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save details"}</button>
       <Msg text={msg.text} good={msg.good} />
     </Section>
+  );
+}
+
+// ---- home page images (R5.1) --------------------------------------------------------------
+
+type HomeImagesData = {
+  images: { hero: { key: string; alt: string } | null; banner: string | null; categories: Record<string, string> };
+  categories: { slug: string; name: string }[];
+  photoCloud: string | null;
+};
+
+function HomeImagesSection() {
+  const [data, setData] = useState<HomeImagesData | null>(null);
+  const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  const load = useCallback(() => setRefresh((n) => n + 1), []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const o = await api("GET", "/api/admin/settings/home-images");
+      if (cancelled) return;
+      if (o.ok) setData(o.data as unknown as HomeImagesData);
+      else setError(failMessage(o));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refresh]);
+  if (error) return <Section id="homeimg-h" title="Home page images"><Msg text={error} /></Section>;
+  if (!data) return <Section id="homeimg-h" title="Home page images"><p className="text-muted" role="status">Loading…</p></Section>;
+  return (
+    <Section id="homeimg-h" title="Home page images" hint="The big hero photo, the wide banner above the popular items, and one round photo per menu category. Until you upload one, the page shows its built-in picture, so nothing is ever broken or empty. JPEG, PNG or WebP, at least 1200 x 900 pixels.">
+      <div className="space-y-5">
+        <HomeImageSlot label="Hero photo (the big photo at the top of the home page)" slot={{ slot: "hero" }} image={data.images.hero?.key ?? null} alt={data.images.hero?.alt ?? ""} cloud={data.photoCloud} shape="card" onChanged={load} />
+        <HomeImageSlot label="Wide banner (above the popular items)" slot={{ slot: "banner" }} image={data.images.banner} cloud={data.photoCloud} shape="wide" onChanged={load} />
+        <div>
+          <h3 className="font-bold">Category photos (the round tiles)</h3>
+          <ul className="mt-2 grid gap-4 sm:grid-cols-2">
+            {data.categories.map((c) => (
+              <li key={c.slug}>
+                <HomeImageSlot label={c.name} slot={{ slot: "category", slug: c.slug }} image={data.images.categories[c.slug] ?? null} cloud={data.photoCloud} shape="round" onChanged={load} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+function HomeImageSlot({ label, slot, image, alt, cloud, shape, onChanged }: { label: string; slot: { slot: "hero" } | { slot: "banner" } | { slot: "category"; slug: string }; image: string | null; alt?: string; cloud: string | null; shape: "round" | "card" | "wide"; onChanged: () => void }) {
+  const [msg, setMsg] = useState<{ text: string; good?: boolean }>({ text: "" });
+  const [altText, setAltText] = useState(alt ?? "");
+  const [busy, setBusy] = useState(false);
+  async function send(form: FormData, done: string) {
+    setBusy(true);
+    setMsg({ text: "Saving…", good: true });
+    form.set("slot", slot.slot);
+    if (slot.slot === "category") form.set("slug", slot.slug);
+    try {
+      const res = await fetch("/api/admin/settings/home-images", { method: "POST", body: form });
+      const out = await res.json().catch(() => ({}));
+      if (res.ok && out.ok !== false) {
+        setMsg({ text: done, good: true });
+        onChanged();
+      } else setMsg({ text: res.status === 401 ? "You have been signed out. Sign in again." : out.message || "That did not work. Please try again." });
+    } catch {
+      setMsg({ text: "No connection. The photo was not saved." });
+    }
+    setBusy(false);
+  }
+  async function remove() {
+    if (!window.confirm("Remove this photo? The page goes back to the drawn artwork.")) return;
+    setBusy(true);
+    const o = await api("DELETE", "/api/admin/settings/home-images", slot.slot === "category" ? { slot: "category", slug: slot.slug } : { slot: "hero" });
+    setMsg(o.ok ? { text: "Photo removed.", good: true } : { text: failMessage(o) });
+    if (o.ok) onChanged();
+    setBusy(false);
+  }
+  return (
+    <div className="rounded-lg border border-line bg-surface p-3">
+      <p className="font-bold">{label}</p>
+      <div className="mt-2 flex flex-wrap items-start gap-4">
+        {cloud && image ? (
+          // eslint-disable-next-line @next/next/no-img-element -- already sized by Cloudinary transformations
+          <img src={shape === "wide" ? bannerUrl(cloud, image, 400) : photoUrl(cloud, image, 400)} alt="" width={shape === "round" ? 96 : 192} height={shape === "round" ? 96 : shape === "wide" ? 108 : 144} className={shape === "round" ? "h-24 w-24 rounded-full object-cover" : shape === "wide" ? "aspect-video w-48 rounded-lg object-cover" : "aspect-[4/3] w-48 rounded-lg object-cover"} />
+        ) : (
+          <p className="text-sm text-muted">No photo uploaded: the page shows its built-in picture.</p>
+        )}
+        <div className="min-w-0 grow space-y-2">
+          <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} className="block min-h-[44px] w-full text-sm" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; const form = new FormData(); form.set("file", f); if (slot.slot === "hero") form.set("alt", altText); void send(form, "Photo saved."); }} />
+          {slot.slot === "hero" && (
+            <label className="block text-sm text-muted">
+              Describe the hero photo for people who cannot see it
+              <input className={`${field} mt-1 block w-full`} value={altText} maxLength={200} onChange={(e) => setAltText(e.target.value)} />
+            </label>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {slot.slot === "hero" && image && <button type="button" className="btn btn-ghost !min-h-[40px] !px-3 !py-1 text-sm" disabled={busy} onClick={() => { const form = new FormData(); form.set("alt", altText); void send(form, "Description saved."); }}>Save description</button>}
+            {image && <button type="button" className="btn btn-ghost !min-h-[40px] !px-3 !py-1 text-sm" disabled={busy} onClick={remove}>Remove photo</button>}
+          </div>
+        </div>
+      </div>
+      <Msg text={msg.text} good={msg.good} />
+    </div>
   );
 }
 

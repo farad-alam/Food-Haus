@@ -247,3 +247,10 @@ Menu photos are uploaded to and served by **Cloudinary** (owner's decision, repl
 - [x] Footer shows the legal name, company number, registered office and VAT number when the owner has entered them in Settings; nothing is shown in their place until then
 - [x] **Fixed a hydration error (React #418) affecting every visitor with a saved basket** on every public page (the sticky basket bar rendered before the server HTML had it). Found while testing; present before today's changes
 - [x] `docs/daily-routine.md`: the one-page how-to for the daily routine (R9.14). The 30-minute walkthrough with the owner is still a session to schedule
+
+## Home page redesign and home page images (R5.1, R5.2, R10)
+- [x] Band layout with torn-edge dividers (static SVG), category tiles linking to menu sections, offers band, popular photo cards, drawn step icons, find-us/hours band; menu cards carry the same style (photo on top, orange price pill). No carousels, no autoplay, no pop-ups; the only motion is CSS hover under `motion-safe`; `document.getAnimations()` is empty at rest
+- [x] Budgets on the production build: CLS 0.0000 (phone), home JS ~121 KB uncompressed, Order now above the fold at 360x640, no horizontal scroll at 360 px. LCP element is inline SVG art (or the preloaded hero photo once uploaded)
+- [x] New admin section Settings → Home page images (hero + per-category, settings.edit only, audited, same validation + signed Cloudinary upload, old assets destroyed on replace/remove; migration 0007 adds settings.home_images). Malformed stored values are ignored whole
+- [x] Built-in home page photos are images the OWNER supplied (generated in his own Gemini account): static files in `public/home/`, AVIF + WebP fallback, several widths, explicit sizes; hero 1024 AVIF = 44 KB (≤ 100 KB, R10.5). Decoration only: never attached to a menu item (item cards keep drawn art until the shop uploads real item photos). Admin uploads (hero, banner, category tiles) override them
+- [ ] If the admin uploads a different hero photo, confirm its delivered weight is ≤ 100 KB (R10.5) and re-check LCP ≤ 2.5 s on the live site

@@ -5,9 +5,13 @@ import { RestaurantJsonLd } from "@/components/json-ld";
 import { preload } from "react-dom";
 import { Suspense } from "react";
 import { AddToBasket } from "@/components/basket";
-import { OfferStrip } from "@/components/live-offers";
+import { CategoryArt, MiniIcon } from "@/components/food-art";
+import { FoodPicture, HOME_DEFAULTS } from "@/components/home-photos";
+import { OfferBand } from "@/components/live-offers";
 import { HeroStatus } from "@/components/shop-status";
 import { ReviewsBlock } from "@/components/reviews";
+import { Torn } from "@/components/torn";
+import { getHomeImages } from "@/lib/home-images";
 import { getMenu } from "@/lib/menu";
 import { getSchedule } from "@/lib/schedule-public";
 import { weekTimetable } from "@/lib/shop-status";
@@ -15,7 +19,7 @@ import { formatPence } from "@/lib/money";
 import { getContact } from "@/lib/contact-public";
 import { fullAddress, mapsLinkFor, phoneDisplay, telHref } from "@/lib/contact-format";
 import { getPhotoCloudName } from "@/lib/photos";
-import { photoSrcSet, photoUrl } from "@/lib/photos/keys";
+import { bannerSrcSet, bannerUrl, photoSrcSet, photoUrl } from "@/lib/photos/keys";
 import { shop } from "@/lib/shop";
 
 export const metadata: Metadata = pageMetadata({
@@ -25,130 +29,232 @@ export const metadata: Metadata = pageMetadata({
   path: "/",
 });
 
+// The home page is bands of alternating colour (ink, cream, orange, crimson) with torn edges between them
+// (R5.1). Every image slot shows, in this order: the photo uploaded in Settings (Home page images), else the
+// built-in photo the owner supplied (components/home-photos.tsx), else our own drawn art. The built-in photos
+// are decoration for this page only and are never attached to a menu item (item photos are the shop's real
+// food). All decoration is static: no JavaScript, no autoplay, no carousels, nothing moves on its own (R10).
 export default async function Home() {
   const menu = await getMenu();
   const contact = await getContact();
   const { hours } = await getSchedule(); // owner-entered opening hours: structured data and the hours block
   const timetable = weekTimetable(hours);
-  // Hero photo (R5.1, R10.5): a real photo of the first popular item that has one. Never a stock or placeholder image.
   const photoCloud = getPhotoCloudName();
-  const heroItem = photoCloud ? (menu.popular.find((i) => i.photo) ?? null) : null;
-  if (heroItem?.photo) preload(photoUrl(photoCloud, heroItem.photo.key, 800), { as: "image", imageSrcSet: photoSrcSet(photoCloud, heroItem.photo.key), imageSizes: "(min-width: 768px) 480px, 100vw", fetchPriority: "high" });
+  const home = await getHomeImages();
+
+  // Hero photo (R5.1, R10.5): the uploaded hero image, else the built-in one (which blends into the dark band).
+  const hero = photoCloud && home.hero ? home.hero : null;
+  if (hero) preload(photoUrl(photoCloud, hero.key, 800), { as: "image", imageSrcSet: photoSrcSet(photoCloud, hero.key), imageSizes: "(min-width: 768px) 480px, 100vw", fetchPriority: "high" });
+
+  const slugOf = new Map(menu.categories.map((c) => [c.name, c.slug]));
 
   return (
-    <main>
+    <main className="bg-ink">
       <RestaurantJsonLd menu={menu} hours={hours} contact={contact} />
 
-      {/* Hero: one line, one action (Build principles) */}
-      <section className="border-b border-line bg-gradient-to-b from-surface to-ink">
-        <div className={`mx-auto max-w-5xl px-4 py-10 sm:py-16 ${heroItem?.photo ? "grid items-center gap-8 md:grid-cols-2" : ""}`}>
+      {/* ---- HERO (near black, warm glow) ---------------------------------------------------- */}
+      <section className="relative overflow-hidden">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-28 -top-28 h-96 w-96 rounded-full bg-brand/15 blur-3xl" />
+        <div className="mx-auto grid max-w-5xl items-center gap-8 px-4 pb-10 pt-8 sm:pt-14 md:grid-cols-2">
           <div>
-          <p className="mb-2 inline-block rounded-full border border-ok px-3 py-1 text-xs font-bold uppercase tracking-wide text-ok">
-            100% Halal
-          </p>
-          {/* R5.1: open or closed, with the next opening time. A fixed-height row, so it streaming in shifts nothing (R10.8). */}
-          <div className="mb-3 min-h-[1.5rem]">
+            <p className="mb-2 inline-block rounded-full border border-ok px-3 py-1 text-xs font-bold uppercase tracking-wide text-ok">100% Halal</p>
+            {/* R5.1: open or closed with the next opening time; fixed-height row so it streaming in shifts nothing (R10.8) */}
+            <div className="mb-3 min-h-[1.5rem]">
+              <Suspense fallback={null}>
+                <HeroStatus />
+              </Suspense>
+            </div>
+            <h1 className="font-display text-6xl leading-[0.95] sm:text-8xl">
+              Halal <span className="text-brand">burgers</span> in Luton
+            </h1>
+            <p className="mt-3 max-w-xl text-lg text-muted">Smash burgers, wings, tenders and loaded fries — order direct from the shop.</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/menu" className="btn btn-primary">Order now</Link>
+              <a href="#categories" className="btn btn-ghost">See the menu</a>
+            </div>
+            {/* Delivery and collection strip */}
+            <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-line pt-4 text-sm text-muted">
+              <li className="flex items-center gap-2"><MiniIcon kind="scooter" className="h-5 w-5 text-brand" /> Delivery &amp; collection</li>
+              <li className="flex items-center gap-2"><MiniIcon kind="pay" className="h-5 w-5 text-brand" /> Card or cash</li>
+              <li className="flex items-center gap-2"><MiniIcon kind="menu" className="h-5 w-5 text-brand" /> No account needed</li>
+            </ul>
+          </div>
+          <div className="relative">
+            {hero ? (
+              // Fixed 4:3 box, explicit size, high fetch priority: the largest thing on the page must not shift it (R10.5, R10.8).
+              // eslint-disable-next-line @next/next/no-img-element -- already sized by Cloudinary transformations
+              <img
+                src={photoUrl(photoCloud, hero.key, 800)}
+                srcSet={photoSrcSet(photoCloud, hero.key)}
+                sizes="(min-width: 768px) 480px, 100vw"
+                alt={hero.alt}
+                width={1200}
+                height={900}
+                fetchPriority="high"
+                decoding="async"
+                className="aspect-[4/3] w-full rotate-1 rounded-3xl border-4 border-surface-2 bg-surface-2 object-cover shadow-2xl"
+              />
+            ) : (
+              // The built-in hero sits straight on the dark band (its background is black), so no frame.
+              <FoodPicture image={HOME_DEFAULTS.hero} sizes="(min-width: 768px) 480px, 100vw" loading="eager" fetchPriority="high" imgClassName="mx-auto w-full max-w-md md:max-w-none" />
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ---- CATEGORY TILES (warm cream) ----------------------------------------------------- */}
+      <Torn from="bg-ink" to="text-cream" />
+      <section id="categories" aria-labelledby="categories-h" className="bg-cream text-ink">
+        <div className="mx-auto max-w-5xl px-4 py-10">
+          <h2 id="categories-h" className="font-display text-4xl sm:text-5xl">What are you craving?</h2>
+          <ul className="mt-6 grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-6">
+            {menu.categories.map((cat) => {
+              const img = photoCloud ? home.categories[cat.slug] : undefined;
+              const fallback = HOME_DEFAULTS.categories[cat.slug];
+              return (
+                <li key={cat.slug} className="text-center">
+                  <Link href={`/menu#${cat.slug}`} className="group block no-underline">
+                    <span className="mx-auto block h-20 w-20 overflow-hidden rounded-full border-4 border-cream-2 bg-ink shadow-md transition group-hover:border-brand motion-safe:group-hover:-translate-y-1 sm:h-24 sm:w-24">
+                      {img ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- already sized by Cloudinary transformations
+                        <img src={photoUrl(photoCloud, img, 400)} alt="" width={200} height={150} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                      ) : fallback ? (
+                        <FoodPicture image={fallback} sizes="96px" imgClassName="h-full w-full object-cover" />
+                      ) : (
+                        <CategoryArt slug={cat.slug} className="h-full w-full bg-cream-2 p-2" />
+                      )}
+                    </span>
+                    <span className="mt-2 block text-sm font-bold text-ink">{cat.name}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </section>
+
+      {/* ---- OFFERS BAND (orange) ------------------------------------------------------------ */}
+      <Torn from="bg-cream" to="text-brand" rip={1} />
+      <section aria-labelledby="offers-h" className="bg-brand text-ink">
+        <div className="mx-auto max-w-5xl px-4 py-6">
+          <h2 id="offers-h" className="text-xs font-bold uppercase tracking-[0.2em]">Offers</h2>
+          <div className="mt-1 min-h-10">
             <Suspense fallback={null}>
-              <HeroStatus />
+              <OfferBand />
             </Suspense>
           </div>
-          <h1 className="font-display text-5xl leading-none sm:text-7xl">
-            Halal burgers <span className="text-brand">in Luton</span>
-          </h1>
-          <p className="mt-3 max-w-xl text-lg text-muted">
-            Smash burgers, wings, tenders and loaded fries — order direct from the shop for delivery or collection.
+        </div>
+      </section>
+
+      {/* ---- POPULAR (ink) --------------------------------------------------------------------- */}
+      <Torn from="bg-brand" to="text-ink" flip />
+      <section aria-labelledby="popular" className="bg-ink">
+        {/* The wide feast banner (decoration): the admin-uploaded one, else the built-in one. Its black background melts into the band. */}
+        <div aria-hidden="true" className="mx-auto max-w-[1100px]">
+          {photoCloud && home.banner ? (
+            // eslint-disable-next-line @next/next/no-img-element -- already sized by Cloudinary transformations
+            <img src={bannerUrl(photoCloud, home.banner, 1024)} srcSet={bannerSrcSet(photoCloud, home.banner)} sizes="(min-width: 1100px) 1100px, 100vw" alt="" width={1600} height={900} loading="lazy" decoding="async" className="aspect-video w-full object-cover" />
+          ) : (
+            <FoodPicture image={HOME_DEFAULTS.banner} sizes="(min-width: 1100px) 1100px, 100vw" imgClassName="w-full" />
+          )}
+        </div>
+        <div className="mx-auto max-w-5xl px-4 pb-10 pt-2">
+          <h2 id="popular" className="font-display text-4xl sm:text-5xl">Popular <span className="text-brand">right now</span></h2>
+          <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {menu.popular.map((item) => {
+              const slug = slugOf.get(item.category) ?? "";
+              return (
+                <li key={item.id} className="flex flex-col overflow-hidden rounded-2xl border border-line bg-surface transition motion-safe:hover:-translate-y-0.5 hover:border-brand/60">
+                  {photoCloud && item.photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- already sized by Cloudinary transformations
+                    <img src={photoUrl(photoCloud, item.photo.key, 400)} srcSet={photoSrcSet(photoCloud, item.photo.key)} sizes="(min-width: 1024px) 320px, (min-width: 640px) 45vw, 90vw" alt={item.photo.alt} width={400} height={300} loading="lazy" decoding="async" className="aspect-[4/3] w-full bg-surface-2 object-cover" />
+                  ) : (
+                    <div aria-hidden="true" className="flex aspect-[4/3] w-full items-center justify-center bg-gradient-to-br from-crimson to-ink">
+                      <CategoryArt slug={slug} className="h-24 w-24 -rotate-6 opacity-90" />
+                    </div>
+                  )}
+                  <div className="flex grow flex-col gap-2 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="font-bold">{item.name}</h3>
+                      <span className="whitespace-nowrap rounded-full bg-brand px-2.5 py-0.5 font-bold text-ink">{formatPence(item.price)}</span>
+                    </div>
+                    <p className="line-clamp-2 text-sm text-muted">{item.description}</p>
+                    <div className="mt-auto flex justify-end">
+                      <AddToBasket id={item.id} name={item.name} price={item.price} soldOut={item.soldOut} optionGroup={menu.optionGroups[item.category] ?? null} />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-6">
+            <Link href="/menu" className="btn btn-ghost">See the full menu</Link>
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/menu" className="btn btn-primary">Order now</Link>
-            <a href={telHref(contact.phone)} className="btn btn-ghost" data-event="click_call">
-              Call {phoneDisplay(contact.phone)}
-            </a>
+        </div>
+      </section>
+
+      {/* ---- HOW ORDERING WORKS (cream) -------------------------------------------------------- */}
+      <Torn from="bg-ink" to="text-cream" rip={1} flip />
+      <section aria-labelledby="how-h" className="bg-cream text-ink">
+        <div className="mx-auto max-w-5xl px-4 py-10">
+          <h2 id="how-h" className="font-display text-4xl sm:text-5xl">How it works</h2>
+          <ol className="mt-6 grid gap-6 sm:grid-cols-3">
+            {(
+              [
+                ["menu", "Pick your food", "Browse the menu and add to your basket. No account needed."],
+                ["scooter", "Delivery or collection", "Enter your postcode to see your delivery fee before you go on."],
+                ["pay", "Pay your way", "Card, bank or cash on delivery."],
+              ] as const
+            ).map(([icon, title, text], n) => (
+              <li key={icon} className="relative rounded-2xl bg-cream-2 p-5 pt-6">
+                <span aria-hidden="true" className="absolute -top-4 left-5 flex h-9 w-9 items-center justify-center rounded-full bg-brand font-display text-xl text-ink shadow">{n + 1}</span>
+                <MiniIcon kind={icon} className="h-8 w-8 text-crimson" />
+                <h3 className="mt-2 font-display text-2xl">{title}</h3>
+                <p className="mt-1 text-ink/70">{text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* ---- GOOGLE REVIEWS (ink): renders nothing until configured; loads Google only after first paint */}
+      <Torn from="bg-cream" to="text-ink" />
+      <section className="bg-ink">
+        <div className="mx-auto max-w-5xl px-4 py-8">
+          <ReviewsBlock />
+        </div>
+      </section>
+
+      {/* ---- FIND US + HOURS (deep red) --------------------------------------------------------- */}
+      <Torn from="bg-ink" to="text-crimson" rip={1} />
+      <section aria-labelledby="find" className="bg-crimson text-cream">
+        <div className="mx-auto grid max-w-5xl gap-8 px-4 py-10 md:grid-cols-2">
+          <div>
+            <h2 id="find" className="font-display text-4xl sm:text-5xl">Find us</h2>
+            <p className="mt-3 text-lg">{shop.name}, {fullAddress(contact)}</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <a href={telHref(contact.phone)} className="btn btn-primary" data-event="click_call">Call {phoneDisplay(contact.phone)}</a>
+              <a href={mapsLinkFor(contact)} rel="noopener noreferrer" className="btn border-2 !border-cream/50 text-cream hover:!border-cream" data-event="click_directions">Get directions</a>
+            </div>
           </div>
-          {/* Live offers (R9.8): only what the owner is running right now */}
-          <div className="mt-6 h-9">
-            <Suspense fallback={null}>
-              <OfferStrip />
-            </Suspense>
-          </div>
-          </div>
-          {heroItem?.photo && (
-            // Fixed 4:3 box with explicit size and a high fetch priority: it is the largest thing on the page and must not shift it (R10.5, R10.8).
-            // eslint-disable-next-line @next/next/no-img-element -- already resized at upload; served from our own /media route
-            <img
-              src={photoUrl(photoCloud, heroItem.photo.key, 800)}
-              srcSet={photoSrcSet(photoCloud, heroItem.photo.key)}
-              sizes="(min-width: 768px) 480px, 100vw"
-              alt={heroItem.photo.alt}
-              width={1200}
-              height={900}
-              fetchPriority="high"
-              decoding="async"
-              className="aspect-[4/3] w-full rounded-2xl bg-surface-2 object-cover"
-            />
+          {/* Opening hours (R5.1), from the same settings as the status in the hero and the footer. Nothing until the owner enters them. */}
+          {timetable.length > 0 && (
+            <div data-testid="home-hours">
+              <h3 className="font-display text-3xl">Opening hours</h3>
+              <dl className="mt-2 divide-y divide-cream/20 border-y border-cream/20">
+                {timetable.map((r) => (
+                  <div key={r.day} className="flex justify-between gap-4 py-1.5">
+                    <dt className="font-bold">{r.day}</dt>
+                    <dd className={r.times === "Closed" ? "text-cream/60" : ""}>{r.times}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-2 text-sm text-cream/70">Times are UK time. We may close on bank holidays.</p>
+            </div>
           )}
         </div>
       </section>
-
-      {/* Popular items */}
-      <section className="mx-auto max-w-5xl px-4 py-8" aria-labelledby="popular">
-        <h2 id="popular" className="font-display text-3xl">Popular right now</h2>
-        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-          {menu.popular.map((item) => (
-            <li key={item.id} className="flex items-start justify-between gap-3 rounded-2xl border border-line bg-surface p-4">
-              {photoCloud && item.photo && (
-                // eslint-disable-next-line @next/next/no-img-element -- already resized at upload; served from our own /media route
-                <img src={photoUrl(photoCloud, item.photo.key, 400)} alt={item.photo.alt} width={96} height={72} loading="lazy" decoding="async" className="h-[72px] w-24 shrink-0 rounded-lg bg-surface-2 object-cover" />
-              )}
-              <div className="min-w-0 grow">
-                <h3 className="font-bold">{item.name}</h3>
-                <p className="line-clamp-2 text-sm text-muted">{item.description}</p>
-                <p className="mt-1 font-bold text-brand">{formatPence(item.price)}</p>
-              </div>
-              <AddToBasket id={item.id} name={item.name} price={item.price} soldOut={item.soldOut} optionGroup={menu.optionGroups[item.category] ?? null} />
-            </li>
-          ))}
-        </ul>
-        <p className="mt-4">
-          <Link href="/menu" className="btn btn-ghost">See the full menu</Link>
-        </p>
-      </section>
-
-      {/* Google rating and reviews (R7.1): renders nothing until configured; loads Google only after first paint */}
-      <section className="mx-auto max-w-5xl px-4 pb-8">
-        <ReviewsBlock />
-      </section>
-
-      {/* How ordering works */}
-      <section className="border-y border-line bg-surface">
-        <div className="mx-auto grid max-w-5xl gap-4 px-4 py-8 sm:grid-cols-3">
-          <div><h3 className="font-display text-2xl">1. Pick your food</h3><p className="text-muted">Browse the menu and add to your basket. No account needed.</p></div>
-          <div><h3 className="font-display text-2xl">2. Delivery or collection</h3><p className="text-muted">Enter your postcode to see your delivery fee before you go on.</p></div>
-          <div><h3 className="font-display text-2xl">3. Pay your way</h3><p className="text-muted">Card, bank or cash on delivery.</p></div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-5xl px-4 pb-10" aria-labelledby="find">
-        <h2 id="find" className="font-display text-3xl">Find us</h2>
-        <p className="mt-2">{shop.name}, {fullAddress(contact)}</p>
-        <p className="mt-3">
-          <a href={mapsLinkFor(contact)} rel="noopener noreferrer" className="btn btn-ghost" data-event="click_directions">Get directions</a>
-        </p>
-        {/* Opening hours (R5.1), from the same settings as the status above and the footer. Nothing shown until the owner enters them. */}
-        {timetable.length > 0 && (
-          <div className="mt-6 max-w-sm" data-testid="home-hours">
-            <h3 className="font-display text-2xl">Opening hours</h3>
-            <dl className="mt-2 divide-y divide-line border-y border-line">
-              {timetable.map((r) => (
-                <div key={r.day} className="flex justify-between gap-4 py-1.5">
-                  <dt className="font-bold">{r.day}</dt>
-                  <dd className={r.times === "Closed" ? "text-muted" : ""}>{r.times}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-2 text-sm text-muted">Times are UK time. We may close on bank holidays.</p>
-          </div>
-        )}
-      </section>
+      <Torn from="bg-crimson" to="text-surface" />
     </main>
   );
 }

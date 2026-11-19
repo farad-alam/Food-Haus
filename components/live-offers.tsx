@@ -74,3 +74,22 @@ export async function OfferCards() {
     </>
   );
 }
+
+/**
+ * The home page's orange offers band (R9.8): the first live offer in bold ink on the band, a link when there
+ * are more, and a factual line when nothing is running. Constant height either way, so nothing shifts.
+ */
+export async function OfferBand() {
+  const offers = await current();
+  if (offers.length === 0) {
+    return <p className="flex min-h-10 items-center text-lg font-bold">Order direct from the shop — delivery or collection, card or cash.</p>;
+  }
+  return (
+    <div className="flex min-h-10 flex-wrap items-center gap-x-4 gap-y-1">
+      <p className="font-display text-2xl leading-none sm:text-3xl">{describeShort(toFacts(offers[0]))}</p>
+      <Link href="/offers" className="shrink-0 font-bold underline underline-offset-4">
+        {offers.length > 1 ? `+${offers.length - 1} more offer${offers.length > 2 ? "s" : ""}` : "See the details"}
+      </Link>
+    </div>
+  );
+}

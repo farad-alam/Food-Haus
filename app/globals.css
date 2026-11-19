@@ -14,6 +14,11 @@
   --muted: #b5b5b5;
   --ok: #3ecf6e;
   --bad: #ff6b5e;
+  /* Home page band colours (warm, high-contrast): ink text on cream and orange, cream text on crimson. */
+  --cream: #f7e9d6;
+  --cream-2: #efdcc0;
+  --crimson: #7e1f12;
+  --crimson-2: #5e170d;
 }
 
 @theme inline {
@@ -25,6 +30,10 @@
   --color-line: var(--line);
   --color-text: var(--text);
   --color-muted: var(--muted);
+  --color-cream: var(--cream);
+  --color-cream-2: var(--cream-2);
+  --color-crimson: var(--crimson);
+  --color-crimson-2: var(--crimson-2);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
 }

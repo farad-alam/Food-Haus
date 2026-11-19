@@ -27,6 +27,19 @@ export function photoUrl(cloud: string | null | undefined, publicId: string, wid
   return `https://res.cloudinary.com/${cloud}/image/upload/c_lfill,ar_4:3,g_auto,w_${w},f_auto,q_auto/${publicId}`;
 }
 
+/** One size of a WIDE (16:9) photo, for the admin-uploaded home banner. Same rules as photoUrl. */
+export function bannerUrl(cloud: string | null | undefined, publicId: string, width: number): string {
+  if (!isCloudName(cloud) || !isPublicId(publicId)) return "";
+  const w = Math.min(Math.max(Math.round(width), 1), MAX_DELIVERY_WIDTH);
+  return `https://res.cloudinary.com/${cloud}/image/upload/c_lfill,ar_16:9,g_auto,w_${w},f_auto,q_auto/${publicId}`;
+}
+export function bannerSrcSet(cloud: string | null | undefined, publicId: string): string {
+  return DELIVERY_WIDTHS.map((w) => ({ w, u: bannerUrl(cloud, publicId, w) }))
+    .filter((x) => x.u)
+    .map((x) => `${x.u} ${x.w}w`)
+    .join(", ");
+}
+
 /** The srcset for a photo: every delivery width, each described by its real width. */
 export function photoSrcSet(cloud: string | null | undefined, publicId: string): string {
   return DELIVERY_WIDTHS.map((w) => ({ w, u: photoUrl(cloud, publicId, w) }))

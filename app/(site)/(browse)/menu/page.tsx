@@ -61,22 +61,22 @@ export default async function MenuPage() {
             )}
             <ul className="mt-3 grid gap-3 sm:grid-cols-2">
               {cat.items.map((item) => (
-                <li key={item.id} className="flex flex-col justify-between gap-3 rounded-2xl border border-line bg-surface p-4">
-                  <div>
-                    {photoCloud && item.photo && (
-                      // Fixed 4:3 box with explicit size: nothing moves when the photo arrives (R10.8). Lazy, resized, WebP (R10.5).
-                      // eslint-disable-next-line @next/next/no-img-element -- already resized at upload; served from our own /media route
-                      <img src={photoUrl(photoCloud, item.photo.key, 400)} srcSet={photoSrcSet(photoCloud, item.photo.key)} sizes="(min-width: 640px) 320px, 90vw" alt={item.photo.alt} width={400} height={300} loading="lazy" decoding="async" className="mb-3 aspect-[4/3] w-full rounded-xl bg-surface-2 object-cover" />
-                    )}
-                    <div className="flex items-baseline justify-between gap-3">
+                <li key={item.id} className="flex flex-col overflow-hidden rounded-2xl border border-line bg-surface transition hover:border-brand/60">
+                  {photoCloud && item.photo && (
+                    // Photo on top of the card when one exists. Fixed 4:3 box with explicit size: nothing moves when it arrives (R10.5, R10.8).
+                    // eslint-disable-next-line @next/next/no-img-element -- already sized by Cloudinary transformations
+                    <img src={photoUrl(photoCloud, item.photo.key, 400)} srcSet={photoSrcSet(photoCloud, item.photo.key)} sizes="(min-width: 640px) 320px, 90vw" alt={item.photo.alt} width={400} height={300} loading="lazy" decoding="async" className="aspect-[4/3] w-full bg-surface-2 object-cover" />
+                  )}
+                  <div className="flex grow flex-col gap-1 p-4">
+                    <div className="flex items-start justify-between gap-3">
                       <h3 className="font-bold">{item.name}</h3>
-                      <span className="whitespace-nowrap font-bold text-brand">{formatPence(item.price)}</span>
+                      <span className="whitespace-nowrap rounded-full bg-brand px-2.5 py-0.5 font-bold text-ink">{formatPence(item.price)}</span>
                     </div>
                     {item.description && <p className="mt-1 text-sm text-muted">{item.description}</p>}
                     <ItemAllergens phone={phone} item={item} options={menu.optionGroups[item.category]?.options ?? []} />
-                  </div>
-                  <div className="flex justify-end">
-                    <AddToBasket id={item.id} name={item.name} price={item.price} soldOut={item.soldOut} optionGroup={menu.optionGroups[item.category] ?? null} />
+                    <div className="mt-auto flex justify-end pt-2">
+                      <AddToBasket id={item.id} name={item.name} price={item.price} soldOut={item.soldOut} optionGroup={menu.optionGroups[item.category] ?? null} />
+                    </div>
                   </div>
                 </li>
               ))}
