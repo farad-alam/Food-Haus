@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
+    "@noble/hashes": "^2.4.0",
     "@opennextjs/cloudflare": "^1.20.15",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.4",

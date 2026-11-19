@@ -3,10 +3,18 @@
 // DEVIATION FROM THE SPEC, ON PURPOSE: R13.3 names argon2id or bcrypt. Neither
 // runs reliably on Cloudflare Workers — argon2 needs WebAssembly compiled from
 // bytes (which Workers forbid) and pure-JS bcrypt is slow and CPU-limited. This
-// uses PBKDF2-HMAC-SHA256 through the platform's native Web Crypto at 600,000
-// iterations, the current OWASP minimum for that algorithm. The stored format
+// uses PBKDF2-HMAC-SHA256 at 600,000 iterations, the current OWASP minimum for
+// that algorithm. It runs on the platform's native Web Crypto wherever that
+// accepts the iteration count (Node, tests). Cloudflare Workers' Web Crypto
+// REFUSES PBKDF2 above 100,000 iterations, so there (and only there) the same
+// algorithm runs in audited pure JavaScript (@noble/hashes), giving byte-for-byte
+// identical hashes: a hash made in Node verifies in a Worker and the reverse,
+// and a 600,000-iteration hash never has to be weakened. The stored format
 // is versioned, so moving to argon2id later (for example if hashing moves to a
 // Node service) only needs a new verifier plus `needsRehash`.
+
+import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 
 const PREFIX = "pbkdf2-sha256";
 export const DEFAULT_ITERATIONS = 600_000;
@@ -32,10 +40,27 @@ function fromB64(s: string): Uint8Array<ArrayBuffer> | null {
   }
 }
 
+/** Cloudflare Workers' Web Crypto caps PBKDF2 at this many iterations; anything higher needs the JS fallback. */
+export const WEBCRYPTO_MAX_ITERATIONS_WORKERS = 100_000;
+
+/** The same PBKDF2-HMAC-SHA256 in pure JavaScript (slower, runs anywhere). Exported so tests can compare it with the native one. */
+export function deriveJs(password: string, salt: Uint8Array, iterations: number): Uint8Array {
+  return pbkdf2(sha256, new TextEncoder().encode(password.normalize("NFKC")), salt, { c: iterations, dkLen: KEY_BITS / 8 });
+}
+
 async function derive(password: string, salt: Uint8Array<ArrayBuffer>, iterations: number): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password.normalize("NFKC")), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, KEY_BITS);
-  return new Uint8Array(bits);
+  try {
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password.normalize("NFKC")), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, KEY_BITS);
+    return new Uint8Array(bits);
+  } catch (e) {
+    // Only the known limit is handled: "iteration counts above 100000 are not supported" on Workers. Any other
+    // failure is a real error and is thrown, never silently retried.
+    if (iterations > WEBCRYPTO_MAX_ITERATIONS_WORKERS && /iteration|not supported|NotSupported/i.test(e instanceof Error ? `${e.name} ${e.message}` : String(e))) {
+      return deriveJs(password, salt, iterations);
+    }
+    throw e;
+  }
 }
 
 function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
