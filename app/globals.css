@@ -127,10 +127,14 @@ body {
   background-image: radial-gradient(ellipse 45% 70% at 76% 55%, rgb(244 123 32 / 0.26), transparent 70%);
 }
 .hero-mask {
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 38%);
-  mask-image: linear-gradient(to right, transparent 0%, #000 38%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 38%, #000 96%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 38%, #000 96%, transparent 100%);
 }
 .hero-mask-phone {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%);
   mask-image: linear-gradient(to bottom, transparent 0%, #000 22%);
+}
+.hero-mask-top {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 14%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 14%);
 }

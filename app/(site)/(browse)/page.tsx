@@ -69,7 +69,7 @@ export default async function Home() {
       <section className="hero-bg relative overflow-hidden bg-ink">
         {/* Tablet and up: the square picture sits at the right at the hero's full height (so a ~600 px hero shows
             it at ~1.7x pixel density), its left edge masked away so there is no visible box. */}
-        <div aria-hidden="true" className="absolute inset-y-0 right-0 hidden aspect-square h-full md:block">
+        <div aria-hidden="true" className="hero-mask-top absolute bottom-0 right-4 hidden h-[440px] w-[440px] md:block lg:inset-y-0 lg:h-full lg:w-auto lg:aspect-square lg:right-[clamp(1rem,6vw,8rem)]">
           {heroImg("hero-mask h-full w-full object-cover")}
         </div>
         {/* Wash under the text: solid ink on the left so the words keep AA contrast over the glow or the burger. */}
