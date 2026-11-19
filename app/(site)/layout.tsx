@@ -8,6 +8,7 @@ import { getSchedule } from "@/lib/schedule-public";
 import { weekTimetable } from "@/lib/shop-status";
 import { ContactProvider } from "@/components/contact-context";
 import { getContact } from "@/lib/contact-public";
+import { getSanityConfig } from "@/lib/sanity";
 import { fullAddress, mapsLinkFor, phoneDisplay, telHref } from "@/lib/contact-format";
 
 // Public site chrome: header, basket, footer. The admin panel (app/admin) lives
@@ -80,6 +81,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
                 <p className="font-semibold text-text">Info</p>
                 <ul className="space-y-1">
                   <li><Link href="/about">About</Link></li>
+                  {getSanityConfig() && <li><Link href="/blog">Blog</Link></li>}
                   <li><Link href="/allergens">Allergens</Link></li>
                   <li><Link href="/privacy">Privacy</Link></li>
                   <li><Link href="/cookies">Cookies</Link></li>

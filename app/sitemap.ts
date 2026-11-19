@@ -5,6 +5,7 @@ import { getMenu } from "@/lib/menu";
 import { SITE_URL } from "@/lib/shop";
 import { areaIsIndexable, areaSlug } from "@/lib/areas";
 import { getLiveZones } from "@/lib/zones-public";
+import { getSanityConfig, listPosts } from "@/lib/sanity";
 
 // Area pages (/areas/[slug]) and blog articles join the sitemap only once
 // their content is real (R11.6) — nothing templated-and-empty is listed.
@@ -27,7 +28,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch {
     /* cannot tell: not listed */
   }
-  return ["", "/menu", "/offers", "/about", "/contact", ...allergens, ...legal, ...areas].map((path) => ({
+  // The blog and its articles are listed only when Sanity is set up and reachable (R5.9).
+  let blog: string[] = [];
+  const sanity = getSanityConfig();
+  if (sanity) {
+    try {
+      blog = ["/blog", ...(await listPosts(sanity)).map((p) => `/blog/${p.slug}`)];
+    } catch {
+      blog = ["/blog"];
+    }
+  }
+  return ["", "/menu", "/offers", "/about", "/contact", ...allergens, ...legal, ...areas, ...blog].map((path) => ({
     url: `${SITE_URL}${path}`,
     lastModified,
   }));
