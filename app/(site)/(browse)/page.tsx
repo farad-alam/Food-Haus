@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { RestaurantJsonLd } from "@/components/json-ld";
+import { preload } from "react-dom";
 import { Suspense } from "react";
 import { AddToBasket } from "@/components/basket";
 import { OfferStrip } from "@/components/live-offers";
@@ -13,6 +14,7 @@ import { weekTimetable } from "@/lib/shop-status";
 import { formatPence } from "@/lib/money";
 import { getContact } from "@/lib/contact-public";
 import { fullAddress, mapsLinkFor, phoneDisplay, telHref } from "@/lib/contact-format";
+import { photoSrcSet, photoUrl } from "@/lib/photos/keys";
 import { shop } from "@/lib/shop";
 
 export const metadata: Metadata = pageMetadata({
@@ -27,6 +29,9 @@ export default async function Home() {
   const contact = await getContact();
   const { hours } = await getSchedule(); // owner-entered opening hours: structured data and the hours block
   const timetable = weekTimetable(hours);
+  // Hero photo (R5.1, R10.5): a real photo of the first popular item that has one. Never a stock or placeholder image.
+  const heroItem = menu.popular.find((i) => i.photo) ?? null;
+  if (heroItem?.photo) preload(photoUrl(heroItem.photo.key, 800), { as: "image", imageSrcSet: photoSrcSet(heroItem.photo.key), imageSizes: "(min-width: 768px) 480px, 100vw", fetchPriority: "high" });
 
   return (
     <main>
@@ -34,7 +39,8 @@ export default async function Home() {
 
       {/* Hero: one line, one action (Build principles) */}
       <section className="border-b border-line bg-gradient-to-b from-surface to-ink">
-        <div className="mx-auto max-w-5xl px-4 py-10 sm:py-16">
+        <div className={`mx-auto max-w-5xl px-4 py-10 sm:py-16 ${heroItem?.photo ? "grid items-center gap-8 md:grid-cols-2" : ""}`}>
+          <div>
           <p className="mb-2 inline-block rounded-full border border-ok px-3 py-1 text-xs font-bold uppercase tracking-wide text-ok">
             100% Halal
           </p>
@@ -62,6 +68,22 @@ export default async function Home() {
               <OfferStrip />
             </Suspense>
           </div>
+          </div>
+          {heroItem?.photo && (
+            // Fixed 4:3 box with explicit size and a high fetch priority: it is the largest thing on the page and must not shift it (R10.5, R10.8).
+            // eslint-disable-next-line @next/next/no-img-element -- already resized at upload; served from our own /media route
+            <img
+              src={photoUrl(heroItem.photo.key, 800)}
+              srcSet={photoSrcSet(heroItem.photo.key)}
+              sizes="(min-width: 768px) 480px, 100vw"
+              alt={heroItem.photo.alt}
+              width={1200}
+              height={900}
+              fetchPriority="high"
+              decoding="async"
+              className="aspect-[4/3] w-full rounded-2xl bg-surface-2 object-cover"
+            />
+          )}
         </div>
       </section>
 
@@ -71,7 +93,11 @@ export default async function Home() {
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           {menu.popular.map((item) => (
             <li key={item.id} className="flex items-start justify-between gap-3 rounded-2xl border border-line bg-surface p-4">
-              <div>
+              {item.photo && (
+                // eslint-disable-next-line @next/next/no-img-element -- already resized at upload; served from our own /media route
+                <img src={photoUrl(item.photo.key, 400)} alt={item.photo.alt} width={96} height={72} loading="lazy" decoding="async" className="h-[72px] w-24 shrink-0 rounded-lg bg-surface-2 object-cover" />
+              )}
+              <div className="min-w-0 grow">
                 <h3 className="font-bold">{item.name}</h3>
                 <p className="line-clamp-2 text-sm text-muted">{item.description}</p>
                 <p className="mt-1 font-bold text-brand">{formatPence(item.price)}</p>

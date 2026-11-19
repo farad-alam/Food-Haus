@@ -200,3 +200,15 @@ describe("the Cloudflare Images processor (against a fake of the documented API)
     expect(await storeUploadedPhoto({ store, processor: new CloudflareImagesProcessor(noSize) }, await jpeg(2400, 1800))).toEqual({ ok: false, error: "UNREADABLE" });
   });
 });
+
+import { photoStorageNeedsSetup } from "@/lib/photos";
+
+describe("is there somewhere to put photos?", () => {
+  it("local development always has a folder; Cloudflare needs both bindings", () => {
+    expect(photoStorageNeedsSetup({}, { workers: false, production: false })).toBeNull();
+    expect(photoStorageNeedsSetup({ PHOTOS: {}, IMAGES: {} }, { workers: true, production: true })).toBeNull();
+    expect(photoStorageNeedsSetup({}, { workers: true, production: false })).toMatch(/PHOTOS R2 bucket and the IMAGES binding missing/);
+    expect(photoStorageNeedsSetup({ PHOTOS: {} }, { workers: true, production: false })).toMatch(/IMAGES binding missing/);
+    expect(photoStorageNeedsSetup({ IMAGES: {} }, { workers: false, production: true })).toMatch(/PHOTOS R2 bucket missing/);
+  });
+});

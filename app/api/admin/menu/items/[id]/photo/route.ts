@@ -4,7 +4,7 @@ import { idFromParam, readJson, statusFor } from "@/lib/admin/http";
 import { removeItemPhoto, setItemPhoto, setPhotoAlt } from "@/lib/admin/photos";
 import { getDb } from "@/lib/db/client";
 import { refreshMenuCache } from "@/lib/menu-cache";
-import { getImageProcessor, getPhotoStore } from "@/lib/photos";
+import { getImageProcessor, getPhotoStore, PHOTO_SETUP_MESSAGE, PhotoSetupError } from "@/lib/photos";
 import { MAX_ALT_LENGTH, MAX_UPLOAD_BYTES } from "@/lib/photos/types";
 
 // POST   multipart: `file` (JPEG, PNG or WebP) and optional `alt`: upload or replace the photo
@@ -15,6 +15,7 @@ import { MAX_ALT_LENGTH, MAX_UPLOAD_BYTES } from "@/lib/photos/types";
 type Ctx = { params: Promise<{ id: string }> };
 
 const fail = (e: unknown, what: string) => {
+  if (e instanceof PhotoSetupError) return jsonResponse(501, { ok: false, code: "PHOTOS_NOT_CONFIGURED", message: PHOTO_SETUP_MESSAGE });
   console.error(`${what} failed`, e instanceof Error ? e.message : e);
   return jsonResponse(500, { ok: false, code: "SERVER_ERROR", message: "Something went wrong. Please try again." });
 };
