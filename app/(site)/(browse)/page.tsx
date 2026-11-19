@@ -14,6 +14,7 @@ import { weekTimetable } from "@/lib/shop-status";
 import { formatPence } from "@/lib/money";
 import { getContact } from "@/lib/contact-public";
 import { fullAddress, mapsLinkFor, phoneDisplay, telHref } from "@/lib/contact-format";
+import { getPhotoCloudName } from "@/lib/photos";
 import { photoSrcSet, photoUrl } from "@/lib/photos/keys";
 import { shop } from "@/lib/shop";
 
@@ -30,8 +31,9 @@ export default async function Home() {
   const { hours } = await getSchedule(); // owner-entered opening hours: structured data and the hours block
   const timetable = weekTimetable(hours);
   // Hero photo (R5.1, R10.5): a real photo of the first popular item that has one. Never a stock or placeholder image.
-  const heroItem = menu.popular.find((i) => i.photo) ?? null;
-  if (heroItem?.photo) preload(photoUrl(heroItem.photo.key, 800), { as: "image", imageSrcSet: photoSrcSet(heroItem.photo.key), imageSizes: "(min-width: 768px) 480px, 100vw", fetchPriority: "high" });
+  const photoCloud = getPhotoCloudName();
+  const heroItem = photoCloud ? (menu.popular.find((i) => i.photo) ?? null) : null;
+  if (heroItem?.photo) preload(photoUrl(photoCloud, heroItem.photo.key, 800), { as: "image", imageSrcSet: photoSrcSet(photoCloud, heroItem.photo.key), imageSizes: "(min-width: 768px) 480px, 100vw", fetchPriority: "high" });
 
   return (
     <main>
@@ -73,8 +75,8 @@ export default async function Home() {
             // Fixed 4:3 box with explicit size and a high fetch priority: it is the largest thing on the page and must not shift it (R10.5, R10.8).
             // eslint-disable-next-line @next/next/no-img-element -- already resized at upload; served from our own /media route
             <img
-              src={photoUrl(heroItem.photo.key, 800)}
-              srcSet={photoSrcSet(heroItem.photo.key)}
+              src={photoUrl(photoCloud, heroItem.photo.key, 800)}
+              srcSet={photoSrcSet(photoCloud, heroItem.photo.key)}
               sizes="(min-width: 768px) 480px, 100vw"
               alt={heroItem.photo.alt}
               width={1200}
@@ -93,9 +95,9 @@ export default async function Home() {
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           {menu.popular.map((item) => (
             <li key={item.id} className="flex items-start justify-between gap-3 rounded-2xl border border-line bg-surface p-4">
-              {item.photo && (
+              {photoCloud && item.photo && (
                 // eslint-disable-next-line @next/next/no-img-element -- already resized at upload; served from our own /media route
-                <img src={photoUrl(item.photo.key, 400)} alt={item.photo.alt} width={96} height={72} loading="lazy" decoding="async" className="h-[72px] w-24 shrink-0 rounded-lg bg-surface-2 object-cover" />
+                <img src={photoUrl(photoCloud, item.photo.key, 400)} alt={item.photo.alt} width={96} height={72} loading="lazy" decoding="async" className="h-[72px] w-24 shrink-0 rounded-lg bg-surface-2 object-cover" />
               )}
               <div className="min-w-0 grow">
                 <h3 className="font-bold">{item.name}</h3>

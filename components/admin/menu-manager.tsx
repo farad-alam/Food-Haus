@@ -149,7 +149,7 @@ function CategoryBlock({ cat, index, view, onlyMissing, reload }: { cat: AdminCa
 
       <ul className="mt-3 divide-y divide-line border-y border-line">
         {shown.map((it) => (
-          <ItemRow key={it.id} it={it} items={items} categories={view.categories} reload={reload} />
+          <ItemRow key={it.id} it={it} items={items} categories={view.categories} cloud={view.photoCloud} reload={reload} />
         ))}
         {shown.length === 0 && <li className="py-3 text-muted">{onlyMissing ? "Nothing missing here." : "No items yet."}</li>}
       </ul>
@@ -167,7 +167,7 @@ function CategoryBlock({ cat, index, view, onlyMissing, reload }: { cat: AdminCa
 
 // ---- one item ----------------------------------------------------------------------------------
 
-function ItemRow({ it, items, categories, reload }: { it: AdminItem; items: AdminItem[]; categories: AdminCategory[]; reload: () => void }) {
+function ItemRow({ it, items, categories, cloud, reload }: { it: AdminItem; items: AdminItem[]; categories: AdminCategory[]; cloud: string | null; reload: () => void }) {
   const [editing, setEditing] = useState(false);
   const [msg, setMsg] = useState("");
   const idx = items.findIndex((x) => x.id === it.id);
@@ -192,9 +192,9 @@ function ItemRow({ it, items, categories, reload }: { it: AdminItem; items: Admi
     <li className="py-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-3">
-          {it.photo && (
+          {cloud && it.photo && (
             // eslint-disable-next-line @next/next/no-img-element -- served from our own /media route, already resized
-            <img src={photoUrl(it.photo, 400)} alt="" width={64} height={48} className="h-12 w-16 shrink-0 rounded object-cover" />
+            <img src={photoUrl(cloud, it.photo, 400)} alt="" width={64} height={48} className="h-12 w-16 shrink-0 rounded object-cover" />
           )}
           <div className="min-w-0">
           <p className="font-bold">{it.name} <span className="font-normal text-muted">· {formatPenceExact(it.price)}</span></p>
@@ -215,7 +215,7 @@ function ItemRow({ it, items, categories, reload }: { it: AdminItem; items: Admi
       </div>
       <Msg text={msg} />
       {editing && (
-        <div className="mt-3"><ItemEditor categories={categories} item={it} onPhotoChanged={reload} onDone={() => { setEditing(false); reload(); }} onCancel={() => setEditing(false)} /></div>
+        <div className="mt-3"><ItemEditor categories={categories} item={it} cloud={cloud} onPhotoChanged={reload} onDone={() => { setEditing(false); reload(); }} onCancel={() => setEditing(false)} /></div>
       )}
     </li>
   );
@@ -223,7 +223,7 @@ function ItemRow({ it, items, categories, reload }: { it: AdminItem; items: Admi
 
 type Draft = { name: string; description: string; price: string; categoryId: number; confirmed: boolean; allergens: string[]; tags: string[]; soldOut: boolean; visible: boolean };
 
-function ItemEditor({ categories, item, initial, onDone, onCancel, onPhotoChanged }: { categories: AdminCategory[]; item?: AdminItem; initial?: { categoryId: number }; onDone: () => void; onCancel: () => void; onPhotoChanged?: () => void }) {
+function ItemEditor({ categories, item, initial, cloud = null, onDone, onCancel, onPhotoChanged }: { categories: AdminCategory[]; item?: AdminItem; initial?: { categoryId: number }; cloud?: string | null; onDone: () => void; onCancel: () => void; onPhotoChanged?: () => void }) {
   const [d, setD] = useState<Draft>({
     name: item?.name ?? "",
     description: item?.description ?? "",
@@ -284,7 +284,7 @@ function ItemEditor({ categories, item, initial, onDone, onCancel, onPhotoChange
         </label>
       </div>
 
-      {item ? <PhotoFields item={item} onChanged={() => onPhotoChanged?.()} /> : <p className="text-sm text-muted">Save the item first, then you can add a photo.</p>}
+      {item ? <PhotoFields item={item} cloud={cloud} onChanged={() => onPhotoChanged?.()} /> : <p className="text-sm text-muted">Save the item first, then you can add a photo.</p>}
 
       <AllergenFields id={id} confirmed={d.confirmed} selected={d.allergens} subject="this item" onChange={(p) => set(p)} />
 
@@ -421,7 +421,7 @@ function AllergenFields({ id, confirmed, selected, subject, onChange }: { id: st
 }
 
 /** Upload, describe or remove one item's photo. The server resizes and re-encodes it; nothing here is trusted. */
-function PhotoFields({ item, onChanged }: { item: AdminItem; onChanged: () => void }) {
+function PhotoFields({ item, cloud, onChanged }: { item: AdminItem; cloud: string | null; onChanged: () => void }) {
   const [alt, setAlt] = useState(item.photoAlt ?? "");
   const [msg, setMsg] = useState<{ text: string; good?: boolean }>({ text: "" });
   const [busy, setBusy] = useState(false);
@@ -470,9 +470,9 @@ function PhotoFields({ item, onChanged }: { item: AdminItem; onChanged: () => vo
     <fieldset>
       <legend className="font-bold">Photo</legend>
       <div className="mt-1 space-y-2">
-        {item.photo ? (
+        {cloud && item.photo ? (
           // eslint-disable-next-line @next/next/no-img-element -- served from our own /media route, already resized
-          <img src={photoUrl(item.photo, 800)} srcSet={photoSrcSet(item.photo)} sizes="320px" alt={item.photoAlt || item.name} width={320} height={240} className="aspect-[4/3] w-80 max-w-full rounded-lg object-cover" />
+          <img src={photoUrl(cloud, item.photo, 800)} srcSet={photoSrcSet(cloud, item.photo)} sizes="320px" alt={item.photoAlt || item.name} width={320} height={240} className="aspect-[4/3] w-80 max-w-full rounded-lg object-cover" />
         ) : (
           <p className="text-sm text-muted">No photo yet. The menu shows this item without one.</p>
         )}

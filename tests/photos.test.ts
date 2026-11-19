@@ -1,214 +1,150 @@
-import { mkdtemp, readdir, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { createHash } from "node:crypto";
 import sharp, { type Sharp } from "sharp";
-import { afterAll, describe, expect, it } from "vitest";
-import { allVariantKeys, baseKeyFor, isBaseKey, isFileKey, photoSrcSet, photoUrl, variantKey } from "@/lib/photos/keys";
-import { deletePhotoFiles, PHOTO_MESSAGES, storeUploadedPhoto } from "@/lib/photos/pipeline";
-import { CloudflareImagesProcessor, type ImagesBinding } from "@/lib/photos/processor-cloudflare";
-import { SharpImageProcessor } from "@/lib/photos/processor-sharp";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cloudinaryConfigFromEnv, destroyPhoto, PhotoRejectedError, PhotoServiceError, signParams, uploadPhoto } from "@/lib/photos/cloudinary";
+import { imageDimensions } from "@/lib/photos/dimensions";
+import { isPublicId, photoSrcSet, photoUrl, publicIdFor } from "@/lib/photos/keys";
+import { PHOTO_MESSAGES, uploadValidatedPhoto } from "@/lib/photos/pipeline";
 import { sniffImage } from "@/lib/photos/sniff";
-import { FsPhotoStore } from "@/lib/photos/store-fs";
-import { MemoryPhotoStore } from "@/lib/photos/store-memory";
-import { R2PhotoStore, type R2BucketLike } from "@/lib/photos/store-r2";
-import { MAX_UPLOAD_BYTES, VARIANTS, type PhotoStore } from "@/lib/photos/types";
+import { MAX_UPLOAD_BYTES } from "@/lib/photos/types";
 
 // Test images are generated, never committed.
 const jpeg = (w: number, h: number, extra: (s: Sharp) => Sharp = (s) => s) =>
   extra(sharp({ create: { width: w, height: h, channels: 3, background: { r: 200, g: 80, b: 20 } } })).jpeg().toBuffer().then((b) => new Uint8Array(b));
-const processor = new SharpImageProcessor();
-const dims = async (b: Uint8Array) => { const m = await sharp(b).metadata(); return { w: m.width, h: m.height, format: m.format, exif: m.exif, icc: m.icc }; };
+const CFG = { cloudName: "demo-cloud", apiKey: "123456789012", apiSecret: "abcdefghijklmnop" };
 
-describe("what the bytes are", () => {
-  it("accepts JPEG, PNG and WebP by their first bytes", async () => {
-    expect(sniffImage(await jpeg(10, 10))).toBe("jpeg");
-    expect(sniffImage(new Uint8Array(await sharp({ create: { width: 4, height: 4, channels: 3, background: "#fff" } }).png().toBuffer()))).toBe("png");
-    expect(sniffImage(new Uint8Array(await sharp({ create: { width: 4, height: 4, channels: 3, background: "#fff" } }).webp().toBuffer()))).toBe("webp");
+afterEach(() => vi.unstubAllGlobals());
+
+describe("what the bytes are, and how big the picture is (no image library on Workers)", () => {
+  it("reads JPEG, PNG and WebP dimensions from the bytes", async () => {
+    expect(imageDimensions(await jpeg(321, 123), "jpeg")).toEqual({ width: 321, height: 123 });
+    const png = new Uint8Array(await sharp({ create: { width: 55, height: 44, channels: 3, background: "#fff" } }).png().toBuffer());
+    expect(imageDimensions(png, "png")).toEqual({ width: 55, height: 44 });
+    const webpLossy = new Uint8Array(await sharp({ create: { width: 210, height: 160, channels: 3, background: "#fff" } }).webp({ lossless: false }).toBuffer());
+    expect(imageDimensions(webpLossy, sniffImage(webpLossy)! as "webp")).toEqual({ width: 210, height: 160 });
+    const webpLossless = new Uint8Array(await sharp({ create: { width: 33, height: 77, channels: 4, background: "#fff0" } }).webp({ lossless: true }).toBuffer());
+    expect(imageDimensions(webpLossless, "webp")).toEqual({ width: 33, height: 77 });
   });
-  it("refuses SVG (can carry scripts), GIF, HTML, text and empty files, whatever they are called", () => {
-    const enc = (s: string) => new TextEncoder().encode(s);
-    for (const bad of [enc('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'), enc("GIF89a....."), enc("<html></html>"), enc("hello"), new Uint8Array(), new Uint8Array([0xff, 0xd8])]) expect(sniffImage(bad)).toBeNull();
+  it("a sideways phone JPEG (EXIF orientation 6) reports its size as displayed", async () => {
+    const raw = await jpeg(900, 1300, (s) => s.withMetadata({ orientation: 6 }));
+    expect(imageDimensions(raw, "jpeg")).toEqual({ width: 1300, height: 900 });
+    const upright = await jpeg(900, 1300, (s) => s.withMetadata({ orientation: 1 }));
+    expect(imageDimensions(upright, "jpeg")).toEqual({ width: 900, height: 1300 });
+  });
+  it("garbage, truncated files and wrong kinds give null, never a guess", async () => {
+    expect(imageDimensions(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 4, 1, 1]), "jpeg")).toBeNull();
+    expect(imageDimensions((await jpeg(300, 200)).slice(0, 6), "jpeg")).toBeNull();
+    expect(imageDimensions(new TextEncoder().encode("RIFFxxxxWEBPJUNKssssssssssssssssss"), "webp")).toBeNull();
+    expect(imageDimensions(new Uint8Array(30).fill(7), "png")).toBeNull();
   });
 });
 
-describe("keys", () => {
-  it("are content hashes in a fixed shape, and only that shape is valid", async () => {
-    const k = await baseKeyFor(new Uint8Array([1, 2, 3]));
-    expect(isBaseKey(k)).toBe(true);
-    expect(k).toBe(await baseKeyFor(new Uint8Array([1, 2, 3])));
-    expect(k).not.toBe(await baseKeyFor(new Uint8Array([1, 2, 4])));
-    expect(allVariantKeys(k).every(isFileKey)).toBe(true);
-    expect(photoUrl(k, 800)).toBe(`/media/${k}-800.webp`);
-    expect(photoSrcSet(k)).toBe(`/media/${k}-400.webp 400w, /media/${k}-800.webp 800w, /media/${k}-1200.webp 1200w`);
-    for (const bad of ["", "menu/../etc/passwd", "../menu/0123456789abcdef-400.webp", "menu/0123456789abcdef-401.webp", "menu/0123456789abcdef-400.png", "menu/0123456789ABCDEF-400.webp", "/menu/0123456789abcdef-400.webp", "menu/0123456789abcdef-400.webp/x", "menu/0123456789abcdef", null, 5]) expect([bad, isFileKey(bad)]).toEqual([bad, false]);
-    expect(isBaseKey("menu/0123456789abcdef")).toBe(true);
-    expect(isBaseKey("menu/0123456789abcdef-400.webp")).toBe(false);
+describe("public ids and delivery URLs", () => {
+  it("ids are content hashes in a fixed shape; the same bytes always get the same id", async () => {
+    const id = await publicIdFor(new Uint8Array([1, 2, 3]));
+    expect(isPublicId(id)).toBe(true);
+    expect(id).toBe(await publicIdFor(new Uint8Array([1, 2, 3])));
+    expect(id).not.toBe(await publicIdFor(new Uint8Array([1, 2, 4])));
+    for (const bad of ["", "menu/0123456789abcdef", "food-haus/menu/XYZ", "food-haus/menu/0123456789abcdef/../x", "food-haus/menu/0123456789abcde", null, 7]) expect([bad, isPublicId(bad)]).toEqual([bad, false]);
+  });
+  it("delivery URLs are Cloudinary transformations: 4:3, width-capped at 1600, automatic format and quality", () => {
+    const id = "food-haus/menu/0123456789abcdef";
+    expect(photoUrl("demo-cloud", id, 800)).toBe("https://res.cloudinary.com/demo-cloud/image/upload/c_lfill,ar_4:3,g_auto,w_800,f_auto,q_auto/food-haus/menu/0123456789abcdef");
+    expect(photoUrl("demo-cloud", id, 99999)).toContain("w_1600");
+    expect(photoSrcSet("demo-cloud", id)).toBe([400, 800, 1200, 1600].map((w) => `${photoUrl("demo-cloud", id, w)} ${w}w`).join(", "));
+  });
+  it("a bad cloud name or stored id gives an empty URL (no picture), never a broken or crafted address", () => {
+    const id = "food-haus/menu/0123456789abcdef";
+    for (const badCloud of ["", "bad cloud", "x/../y", "a.b", null, undefined]) expect(photoUrl(badCloud as string, id, 400)).toBe("");
+    for (const badId of ["../../etc", "food-haus/menu/0123456789abcdef?x=1", "menu/0123456789abcdef"]) expect(photoUrl("demo-cloud", badId, 400)).toBe("");
+    expect(photoSrcSet("demo-cloud", "junk")).toBe("");
   });
 });
 
-describe("the upload pipeline", () => {
-  it("makes 4:3 WebP in every size, never wider than 1,600 px, and files are named by their content", async () => {
-    const store = new MemoryPhotoStore();
-    const r = await storeUploadedPhoto({ store, processor }, await jpeg(3000, 2000));
-    if (!r.ok) throw new Error(r.error);
-    expect(isBaseKey(r.base)).toBe(true);
-    expect([...store.files.keys()].sort()).toEqual(allVariantKeys(r.base).sort());
-    for (const v of VARIANTS) {
-      const f = store.files.get(variantKey(r.base, v.width))!;
-      expect(f.contentType).toBe("image/webp");
-      const d = await dims(f.body);
-      expect([d.format, d.w, d.h]).toEqual(["webp", v.width, v.height]);
-      expect(v.width).toBeLessThanOrEqual(1600);
-    }
-    const again = await storeUploadedPhoto({ store: new MemoryPhotoStore(), processor }, await jpeg(3000, 2000));
-    expect(again.ok && again.base).toBe(r.base); // same photo, same name
+describe("signed Cloudinary requests (no SDK: fetch + Web Crypto)", () => {
+  it("signs exactly as documented: sorted params, name=value&…, secret appended, SHA-1 hex", async () => {
+    const params = { timestamp: 1700000000, public_id: "food-haus/menu/abc", overwrite: "false" };
+    const expected = createHash("sha1").update("overwrite=false&public_id=food-haus/menu/abc&timestamp=1700000000" + CFG.apiSecret).digest("hex");
+    expect(await signParams(params, CFG.apiSecret)).toBe(expected);
   });
-  it("applies the camera's rotation and strips every trace of EXIF/GPS and colour profiles", async () => {
-    // A portrait photo stored sideways (orientation 6) with a copyright, as a phone writes it.
-    const raw = await jpeg(2000, 1500, (s) => s.withExif({ IFD0: { Copyright: "SECRET-OWNER-NAME" } }).withMetadata({ orientation: 6 }));
-    expect((await dims(raw)).exif).toBeTruthy();
-    const store = new MemoryPhotoStore();
-    const r = await storeUploadedPhoto({ store, processor }, raw);
-    if (!r.ok) throw new Error(r.error);
-    for (const v of VARIANTS) {
-      const bytes = store.files.get(variantKey(r.base, v.width))!.body;
-      expect((await dims(bytes)).exif).toBeUndefined();
-      expect(Buffer.from(bytes).includes("SECRET-OWNER-NAME")).toBe(false);
+  it("accepts only sane credentials, so a typo cannot half-work", () => {
+    expect(cloudinaryConfigFromEnv({ CLOUDINARY_CLOUD_NAME: "demo-cloud", CLOUDINARY_API_KEY: "123456789012", CLOUDINARY_API_SECRET: "abcdefghijklmnop" })).toEqual(CFG);
+    expect(cloudinaryConfigFromEnv({ CLOUDINARY_CLOUD_NAME: " demo-cloud ", CLOUDINARY_API_KEY: " 123456789012 ", CLOUDINARY_API_SECRET: " abcdefghijklmnop " })).toEqual(CFG);
+    expect(cloudinaryConfigFromEnv({})).toBeNull();
+    for (const patch of [{ CLOUDINARY_CLOUD_NAME: undefined }, { CLOUDINARY_API_KEY: undefined }, { CLOUDINARY_API_SECRET: undefined }, { CLOUDINARY_CLOUD_NAME: "bad cloud" }, { CLOUDINARY_API_KEY: "letters" }, { CLOUDINARY_API_KEY: "123" }, { CLOUDINARY_API_SECRET: "short" }, { CLOUDINARY_API_SECRET: "has space in it" }]) {
+      expect([patch, cloudinaryConfigFromEnv({ CLOUDINARY_CLOUD_NAME: CFG.cloudName, CLOUDINARY_API_KEY: CFG.apiKey, CLOUDINARY_API_SECRET: CFG.apiSecret, ...patch })]).toEqual([patch, null]);
     }
   });
-  it("reads the display size of a rotated photo, so a sideways 1500x2000 is not judged as too small", async () => {
-    const raw = await jpeg(900, 1300, (s) => s.withMetadata({ orientation: 6 })); // displays as 1300 x 900
-    expect(await processor.inspect(raw)).toEqual({ width: 1300, height: 900 });
-    expect((await storeUploadedPhoto({ store: new MemoryPhotoStore(), processor }, raw)).ok).toBe(true);
+  it("upload sends a correctly signed form with the strip-metadata transformation, and never the secret", async () => {
+    const calls: { url: string; form: FormData }[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, form: init.body as FormData });
+      return new Response(JSON.stringify({ public_id: "food-haus/menu/abcdef0123456789", width: 1600, height: 1200 }), { status: 200 });
+    }));
+    const bytes = await jpeg(1300, 1000);
+    const r = await uploadPhoto(CFG, bytes, "food-haus/menu/abcdef0123456789", "image/jpeg");
+    expect(r).toEqual({ publicId: "food-haus/menu/abcdef0123456789", width: 1600, height: 1200 });
+    expect(calls[0].url).toBe("https://api.cloudinary.com/v1_1/demo-cloud/image/upload");
+    const f = calls[0].form;
+    const signed: Record<string, string | number> = {};
+    for (const k of ["allowed_formats", "overwrite", "public_id", "timestamp", "transformation", "unique_filename", "use_filename"]) signed[k] = String(f.get(k));
+    expect(await signParams(signed, CFG.apiSecret)).toBe(f.get("signature"));
+    expect(f.get("transformation")).toBe("a_exif/c_limit,w_1600,h_1600/fl_force_strip");
+    expect(f.get("allowed_formats")).toBe("jpg,jpeg,png,webp");
+    expect(f.get("overwrite")).toBe("false");
+    expect(f.get("api_key")).toBe(CFG.apiKey);
+    for (const [, v] of f.entries()) if (typeof v === "string") expect(v).not.toContain(CFG.apiSecret);
+    expect((f.get("file") as File).type).toBe("image/jpeg");
   });
-  it("refuses each bad upload with a plain message and stores NOTHING", async () => {
+  it("a 400 means Cloudinary refused THIS picture; other failures are service errors", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { message: "Invalid image file" } }), { status: 400 })));
+    await expect(uploadPhoto(CFG, new Uint8Array([1]), "food-haus/menu/abcdef0123456789", "image/jpeg")).rejects.toBeInstanceOf(PhotoRejectedError);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { message: "Invalid Signature" } }), { status: 401 })));
+    await expect(uploadPhoto(CFG, new Uint8Array([1]), "food-haus/menu/abcdef0123456789", "image/jpeg")).rejects.toBeInstanceOf(PhotoServiceError);
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed"); }));
+    await expect(uploadPhoto(CFG, new Uint8Array([1]), "food-haus/menu/abcdef0123456789", "image/jpeg")).rejects.toBeInstanceOf(PhotoServiceError);
+  });
+  it("destroy signs public_id + invalidate + timestamp; 'not found' from Cloudinary is success", async () => {
+    const calls: FormData[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_u: string, init: RequestInit) => {
+      calls.push(init.body as FormData);
+      return new Response(JSON.stringify({ result: "not found" }), { status: 200 });
+    }));
+    await destroyPhoto(CFG, "food-haus/menu/abcdef0123456789");
+    const f = calls[0];
+    expect(await signParams({ invalidate: String(f.get("invalidate")), public_id: String(f.get("public_id")), timestamp: Number(f.get("timestamp")) }, CFG.apiSecret)).toBe(f.get("signature"));
+    expect(f.get("invalidate")).toBe("true");
+  });
+});
+
+describe("the upload pipeline checks everything BEFORE anything is sent", () => {
+  it("refuses each bad upload with a plain message and makes no network call at all", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
     const cases: [string, Uint8Array, keyof typeof PHOTO_MESSAGES][] = [
       ["too small", await jpeg(800, 600), "TOO_SMALL"],
       ["svg", new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="2000"/>'), "NOT_AN_IMAGE"],
-      ["a pdf", new TextEncoder().encode("%PDF-1.4 ...."), "NOT_AN_IMAGE"],
-      ["a truncated jpeg", (await jpeg(2000, 1500)).slice(0, 1200), "UNREADABLE"],
-      ["a jpeg header then junk", new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new Array(500).fill(7)]), "UNREADABLE"],
-      ["too many pixels", new Uint8Array(await sharp({ create: { width: 8000, height: 7000, channels: 3, background: "#000" } }).png({ compressionLevel: 9 }).toBuffer()), "UNREADABLE"],
+      ["a pdf", new TextEncoder().encode("%PDF-1.4 ..."), "NOT_AN_IMAGE"],
+      ["a truncated jpeg", (await jpeg(2000, 1500)).slice(0, 40), "UNREADABLE"],
       ["over the size limit", new Uint8Array(MAX_UPLOAD_BYTES + 1).fill(0xff), "TOO_BIG"],
     ];
     for (const [name, bytes, error] of cases) {
-      const store = new MemoryPhotoStore();
-      const r = await storeUploadedPhoto({ store, processor }, bytes);
-      expect([name, r]).toEqual([name, { ok: false, error }]);
-      expect([name, store.files.size]).toEqual([name, 0]);
-      expect(PHOTO_MESSAGES[error].length).toBeGreaterThan(10);
+      expect([name, await uploadValidatedPhoto(CFG, bytes)]).toEqual([name, { ok: false, error }]);
     }
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
-  it("deleting removes every size, a missing photo is not an error, and a failing store never throws", async () => {
-    const store = new MemoryPhotoStore();
-    const r = await storeUploadedPhoto({ store, processor }, await jpeg(2000, 1500));
-    if (!r.ok) throw new Error();
-    await deletePhotoFiles(store, r.base);
-    expect(store.files.size).toBe(0);
-    await deletePhotoFiles(store, r.base);
-    await deletePhotoFiles(store, null);
-    const broken: PhotoStore = { kind: "memory", put: async () => {}, get: async () => null, delete: async () => { throw new Error("boom"); } };
-    await expect(deletePhotoFiles(broken, r.base)).resolves.toBeUndefined();
+  it("a sideways 900x1300 phone photo (displays as 1300x900) passes the minimum-size check and is uploaded", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (_u: string, init: RequestInit) => {
+      const id = (init.body as FormData).get("public_id") as string;
+      return new Response(JSON.stringify({ public_id: id, width: 1300, height: 900 }), { status: 200 });
+    }));
+    const r = await uploadValidatedPhoto(CFG, await jpeg(900, 1300, (s) => s.withMetadata({ orientation: 6 })));
+    expect(r.ok && isPublicId(r.publicId)).toBe(true);
   });
-});
-
-describe("storage implementations behave the same", () => {
-  const dir = mkdtemp(join(tmpdir(), "fh-photos-"));
-  afterAll(async () => rm(await dir, { recursive: true, force: true }));
-
-  // A fake that follows the documented R2 Workers API (put/get/delete(key|keys), httpMetadata, arrayBuffer()).
-  class FakeR2 implements R2BucketLike {
-    objects = new Map<string, { bytes: ArrayBuffer; httpMetadata: { contentType?: string; cacheControl?: string } }>();
-    async put(key: string, value: ArrayBuffer | Uint8Array, o?: { httpMetadata?: { contentType?: string; cacheControl?: string } }) {
-      const u = value instanceof Uint8Array ? value : new Uint8Array(value);
-      this.objects.set(key, { bytes: u.slice().buffer as ArrayBuffer, httpMetadata: o?.httpMetadata ?? {} });
-    }
-    async get(key: string) {
-      const o = this.objects.get(key);
-      return o ? { arrayBuffer: async () => o.bytes.slice(0), httpMetadata: o.httpMetadata } : null;
-    }
-    async delete(keys: string | string[]) {
-      for (const k of Array.isArray(keys) ? keys : [keys]) this.objects.delete(k);
-    }
-  }
-  const fake = new FakeR2();
-  const stores = async (): Promise<[string, PhotoStore][]> => [["memory", new MemoryPhotoStore()], ["fs", new FsPhotoStore(await dir)], ["r2 (fake)", new R2PhotoStore(fake)]];
-  const key = "menu/0123456789abcdef-400.webp";
-
-  it("put, get, overwrite, delete, and a missing key is null / not an error", async () => {
-    for (const [name, s] of await stores()) {
-      expect([name, await s.get(key)]).toEqual([name, null]);
-      await s.put(key, new Uint8Array([1, 2, 3]), { contentType: "image/webp" });
-      const got = await s.get(key);
-      expect([name, [...got!.body], got!.contentType]).toEqual([name, [1, 2, 3], "image/webp"]);
-      await s.put(key, new Uint8Array([9]), { contentType: "image/webp" });
-      expect([name, [...(await s.get(key))!.body]]).toEqual([name, [9]]);
-      await s.delete([key, "menu/ffffffffffffffff-800.webp"]);
-      expect([name, await s.get(key)]).toEqual([name, null]);
-      await s.delete([]);
-    }
-  });
-  it("every store refuses a key that is not a photo key (no path tricks)", async () => {
-    for (const [, s] of await stores()) {
-      for (const bad of ["../escape.webp", "menu/../../etc/passwd", "/abs.webp", "menu/0123456789abcdef-400.png", ""]) {
-        await expect(s.get(bad)).rejects.toThrow(/unexpected photo key|escapes/);
-        await expect(s.put(bad, new Uint8Array([1]), { contentType: "image/webp" })).rejects.toThrow();
-        await expect(s.delete([bad])).rejects.toThrow();
-      }
-    }
-  });
-  it("R2 files are stored with a type and a long cache lifetime, and the filesystem leaves no temp files", async () => {
-    const r2 = new R2PhotoStore(fake);
-    await r2.put(key, new Uint8Array([1]), { contentType: "image/webp" });
-    expect(fake.objects.get(key)!.httpMetadata).toEqual({ contentType: "image/webp", cacheControl: "public, max-age=31536000, immutable" });
-    const fs = new FsPhotoStore(await dir);
-    await fs.put(key, new Uint8Array([1]), { contentType: "image/webp" });
-    expect((await readdir(join(await dir, "menu"))).filter((f) => f.endsWith(".tmp"))).toEqual([]);
-    await fs.delete([key]);
-  });
-});
-
-describe("the Cloudflare Images processor (against a fake of the documented API)", () => {
-  // Stands in for env.IMAGES: runs the same transform with sharp so the pipeline can be exercised end to end.
-  const fakeImages: ImagesBinding = {
-    info: async (stream) => {
-      const m = await sharp(Buffer.from(await new Response(stream).arrayBuffer())).metadata();
-      return { width: m.width, height: m.height };
-    },
-    input: (stream) => ({
-      transform: (t) => ({
-        output: async (o) => {
-          expect(o.format).toBe("image/webp");
-          const out = await sharp(Buffer.from(await new Response(stream).arrayBuffer())).rotate().resize({ width: t.width, height: t.height, fit: t.fit }).webp({ quality: o.quality }).toBuffer();
-          return { response: () => new Response(new Uint8Array(out), { headers: { "content-type": "image/webp" } }) };
-        },
-      }),
-    }),
-  };
-  it("produces the same variants through the same pipeline", async () => {
-    const store = new MemoryPhotoStore();
-    const r = await storeUploadedPhoto({ store, processor: new CloudflareImagesProcessor(fakeImages) }, await jpeg(2400, 1800));
-    if (!r.ok) throw new Error(r.error);
-    for (const v of VARIANTS) expect(await dims(store.files.get(variantKey(r.base, v.width))!.body)).toMatchObject({ format: "webp", w: v.width, h: v.height });
-  });
-  it("a failing service becomes 'could not read', not a crash, and stores nothing", async () => {
-    const failing: ImagesBinding = { ...fakeImages, input: () => ({ transform: () => ({ output: async () => ({ response: () => new Response("nope", { status: 415 }) }) }) }) };
-    const store = new MemoryPhotoStore();
-    expect(await storeUploadedPhoto({ store, processor: new CloudflareImagesProcessor(failing) }, await jpeg(2400, 1800))).toEqual({ ok: false, error: "UNREADABLE" });
-    expect(store.files.size).toBe(0);
-    const noSize: ImagesBinding = { ...fakeImages, info: async () => ({}) };
-    expect(await storeUploadedPhoto({ store, processor: new CloudflareImagesProcessor(noSize) }, await jpeg(2400, 1800))).toEqual({ ok: false, error: "UNREADABLE" });
-  });
-});
-
-import { photoStorageNeedsSetup } from "@/lib/photos";
-
-describe("is there somewhere to put photos?", () => {
-  it("local development always has a folder; Cloudflare needs both bindings", () => {
-    expect(photoStorageNeedsSetup({}, { workers: false, production: false })).toBeNull();
-    expect(photoStorageNeedsSetup({ PHOTOS: {}, IMAGES: {} }, { workers: true, production: true })).toBeNull();
-    expect(photoStorageNeedsSetup({}, { workers: true, production: false })).toMatch(/PHOTOS R2 bucket and the IMAGES binding missing/);
-    expect(photoStorageNeedsSetup({ PHOTOS: {} }, { workers: true, production: false })).toMatch(/IMAGES binding missing/);
-    expect(photoStorageNeedsSetup({ IMAGES: {} }, { workers: false, production: true })).toMatch(/PHOTOS R2 bucket missing/);
+  it("Cloudinary refusing the picture reads as 'could not read that image'; an outage is an error for the route to map", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { message: "Invalid image file" } }), { status: 400 })));
+    expect(await uploadValidatedPhoto(CFG, await jpeg(2000, 1500))).toEqual({ ok: false, error: "UNREADABLE" });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 503 })));
+    await expect(uploadValidatedPhoto(CFG, await jpeg(2000, 1500))).rejects.toBeInstanceOf(PhotoServiceError);
   });
 });

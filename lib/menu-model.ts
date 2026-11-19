@@ -1,6 +1,6 @@
 import seed from "@/data/menu-seed.json";
 import { normaliseEntry } from "./allergens";
-import { isBaseKey } from "./photos/keys";
+import { isPublicId } from "./photos/keys";
 
 // Pure menu model: types and the builder. No Next.js imports, so the pricing
 // engine and its tests can use it directly. The cached accessor lives in
@@ -28,7 +28,7 @@ export type MenuItem = {
   dietaryTags: string[];
   soldOut: boolean;
   visible: boolean;
-  /** Base key of the photo (see lib/photos/keys.ts) and its alt text (R11.15: falls back to the item name). null = no photo. */
+  /** Cloudinary public id of the photo (lib/photos/keys.ts) and its alt text (R11.15: falls back to the item name). null = no photo. */
   photo: { key: string; alt: string } | null;
 };
 export type MenuCategory = {
@@ -114,7 +114,7 @@ export function rowsToMenu(rows: MenuRows): Menu {
             dietaryTags: i.dietaryTags,
             soldOut: i.soldOut,
             visible: i.visible,
-            photo: isBaseKey(i.photo) ? { key: i.photo, alt: i.photoAlt?.trim() || i.name } : null, // a malformed stored key shows no photo
+            photo: isPublicId(i.photo) ? { key: i.photo, alt: i.photoAlt?.trim() || i.name } : null, // a malformed stored id shows no photo
           };
         });
       return { name: c.name, slug: catSlug, sortOrder: c.sortOrder, items };

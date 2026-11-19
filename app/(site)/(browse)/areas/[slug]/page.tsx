@@ -6,6 +6,7 @@ import { fullAddress, mapsLinkFor } from "@/lib/contact-format";
 import { getContact } from "@/lib/contact-public";
 import { getMenu } from "@/lib/menu";
 import { formatPence, formatPenceExact } from "@/lib/money";
+import { getPhotoCloudName } from "@/lib/photos";
 import { photoUrl } from "@/lib/photos/keys";
 import { getSchedule } from "@/lib/schedule-public";
 import { pageMetadata } from "@/lib/seo";
@@ -35,6 +36,7 @@ export default async function AreaPage({ params }: Props) {
   const [menu, contact, schedule] = await Promise.all([getMenu(), getContact(), getSchedule()]);
   const timetable = weekTimetable(schedule.hours);
   const copy = AREA_COPY[slug];
+  const photoCloud = getPhotoCloudName();
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
       <h1 className="font-display text-5xl">Halal burger delivery in {zone.district}</h1>
@@ -59,9 +61,9 @@ export default async function AreaPage({ params }: Props) {
         <ul className="mt-2 grid gap-3 sm:grid-cols-2">
           {menu.popular.map((i) => (
             <li key={i.id} className="flex items-start justify-between gap-3 rounded-2xl border border-line bg-surface p-3">
-              {i.photo && (
+              {photoCloud && i.photo && (
                 // eslint-disable-next-line @next/next/no-img-element -- already resized at upload; served from our own /media route
-                <img src={photoUrl(i.photo.key, 400)} alt={i.photo.alt} width={96} height={72} loading="lazy" decoding="async" className="h-[72px] w-24 shrink-0 rounded-lg bg-surface-2 object-cover" />
+                <img src={photoUrl(photoCloud, i.photo.key, 400)} alt={i.photo.alt} width={96} height={72} loading="lazy" decoding="async" className="h-[72px] w-24 shrink-0 rounded-lg bg-surface-2 object-cover" />
               )}
               <div className="min-w-0 grow"><p className="font-bold">{i.name}</p></div>
               <span className="font-bold text-brand">{formatPence(i.price)}</span>

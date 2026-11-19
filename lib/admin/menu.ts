@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { category, item, offer, option, optionGroup } from "@/db/schema";
 import type { Db } from "@/lib/db/client";
 import { normaliseEntry } from "@/lib/allergens";
+import { getPhotoCloudName } from "@/lib/photos";
 import { slugify } from "@/lib/menu-model";
 import { auditInsert, type Actor } from "./audit";
 import type { OptionGroupInput } from "./menu-schema";
@@ -39,7 +40,7 @@ export type AdminOptionGroup = {
   maxPicks: number;
   options: { id: number; name: string; priceChange: number; allergens: string[] | null; allergensEnteredAt: string | null }[];
 };
-export type MenuAdminView = { categories: AdminCategory[]; items: AdminItem[]; optionGroups: AdminOptionGroup[] };
+export type MenuAdminView = { categories: AdminCategory[]; items: AdminItem[]; optionGroups: AdminOptionGroup[]; photoCloud: string | null };
 
 export async function loadMenuAdmin(db: Db): Promise<MenuAdminView> {
   const [cats, items, groups, opts] = await db.batch([
@@ -49,6 +50,7 @@ export async function loadMenuAdmin(db: Db): Promise<MenuAdminView> {
     db.select().from(option).orderBy(asc(option.sortOrder), asc(option.id)),
   ]);
   return {
+    photoCloud: getPhotoCloudName(), // the Cloudinary cloud name, for building image URLs in the editor (public by design)
     categories: cats.map((c) => ({ id: c.id, name: c.name, slug: c.slug, sortOrder: c.sortOrder, visible: c.visible })),
     items: items.map((i) => ({ id: i.id, categoryId: i.categoryId, name: i.name, slug: i.slug, description: i.description, price: i.price, allergens: normaliseEntry(i.allergens, i.allergensEnteredAt), allergensEnteredAt: i.allergensEnteredAt?.toISOString() ?? null, photo: i.photo, photoAlt: i.photoAlt, dietaryTags: i.dietaryTags, soldOut: i.soldOut, visible: i.visible, sortOrder: i.sortOrder })),
     // The public menu model supports ONE category-level group per category.

@@ -1,23 +1,36 @@
-import { VARIANTS } from "./types";
+import { DELIVERY_WIDTHS, MAX_DELIVERY_WIDTH } from "./types";
 
-// A photo is stored as one file per size, named by a hash of its content:
-//   menu/<16 hex>-<width>.webp   e.g. menu/9f2c04ab77d1e3c5-800.webp
-// The base key (menu/<16 hex>) is what the database keeps. The content never changes under a key,
-// so the files are served as immutable and cached for a year.
+// A photo is stored in Cloudinary under a public id named by a hash of the file's content:
+//   food-haus/menu/<16 hex>
+// That id is what the database keeps. Delivery URLs are built from it; the same content always gets the same
+// id, so a URL never changes meaning.
 
-export const BASE_KEY = /^menu\/[0-9a-f]{16}$/;
-export const FILE_KEY = /^menu\/[0-9a-f]{16}-(?:400|800|1200)\.webp$/;
+export const PUBLIC_ID = /^food-haus\/menu\/[0-9a-f]{16}$/;
+export const isPublicId = (k: unknown): k is string => typeof k === "string" && PUBLIC_ID.test(k);
 
-export const isBaseKey = (k: unknown): k is string => typeof k === "string" && BASE_KEY.test(k);
-export const isFileKey = (k: unknown): k is string => typeof k === "string" && FILE_KEY.test(k);
-export const variantKey = (base: string, width: number) => `${base}-${width}.webp`;
-export const allVariantKeys = (base: string) => VARIANTS.map((v) => variantKey(base, v.width));
-
-export async function baseKeyFor(bytes: Uint8Array): Promise<string> {
+export async function publicIdFor(bytes: Uint8Array): Promise<string> {
   const d = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as BufferSource));
-  return `menu/${[...d.slice(0, 8)].map((x) => x.toString(16).padStart(2, "0")).join("")}`;
+  return `food-haus/menu/${[...d.slice(0, 8)].map((x) => x.toString(16).padStart(2, "0")).join("")}`;
 }
 
-/** URL a browser uses for one size of a photo. */
-export const photoUrl = (base: string, width: number) => `/media/${variantKey(base, width)}`;
-export const photoSrcSet = (base: string) => VARIANTS.map((v) => `${photoUrl(base, v.width)} ${v.width}w`).join(", ");
+const CLOUD_RE = /^[A-Za-z0-9_-]{2,64}$/;
+export const isCloudName = (c: unknown): c is string => typeof c === "string" && CLOUD_RE.test(c);
+
+/**
+ * One size of a photo, served by Cloudinary: 4:3, never wider than 1,600 px, never enlarged (c_lfill), automatic
+ * format (f_auto: WebP or AVIF where the browser can) and quality (q_auto), smart crop (g_auto). Returns "" for
+ * anything that is not a valid cloud name and id, so a bad stored value shows no picture instead of a broken one.
+ */
+export function photoUrl(cloud: string | null | undefined, publicId: string, width: number): string {
+  if (!isCloudName(cloud) || !isPublicId(publicId)) return "";
+  const w = Math.min(Math.max(Math.round(width), 1), MAX_DELIVERY_WIDTH);
+  return `https://res.cloudinary.com/${cloud}/image/upload/c_lfill,ar_4:3,g_auto,w_${w},f_auto,q_auto/${publicId}`;
+}
+
+/** The srcset for a photo: every delivery width, each described by its real width. */
+export function photoSrcSet(cloud: string | null | undefined, publicId: string): string {
+  return DELIVERY_WIDTHS.map((w) => ({ w, u: photoUrl(cloud, publicId, w) }))
+    .filter((x) => x.u)
+    .map((x) => `${x.u} ${x.w}w`)
+    .join(", ");
+}

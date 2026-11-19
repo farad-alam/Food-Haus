@@ -97,6 +97,7 @@ export const privacyPolicy: LegalDoc = {
             ["Stores orders in a database", ph("Database provider name", "Expected: the provider in the hosting plan. Confirm."), "Your order and contact details", ph("Country and transfer safeguard wording")],
             ["Sends order emails", ph("Email provider name", "Expected: the provider in the email set-up. Confirm."), "Your name, email address and order summary", ph("Country and transfer safeguard wording")],
             ["Checks forms are filled in by people, not bots", ph("Bot-check provider name", "Confirm whether it is switched on for the order form."), "Technical details of your browser", ph("Country and transfer safeguard wording")],
+            ["Stores and shows the food photos on the menu", ph("Image hosting provider name", "Expected: Cloudinary (the image host in use). Confirm."), "The photos the shop uploads; visitors' browsers fetch the images from this provider, which sees their internet address", ph("Country and transfer safeguard wording")],
             ["Shows our Google rating and reviews", ph("Google entry wording", "Loading Google's reviews discloses your internet address to Google. Decide wording, and whether it should wait for cookie consent."), "Your internet address and browser details", ph("Country and transfer safeguard wording")],
             ["Measures how the site is used (only if you accept analytics cookies)", ph("Analytics provider name"), "Pages visited, device and approximate location, via cookies", ph("Country and transfer safeguard wording")],
           ],

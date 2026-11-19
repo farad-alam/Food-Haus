@@ -49,10 +49,10 @@ The site shows **no** allergen claim for any item until the owner has entered it
 - [ ] The yellow "Allergen information is NOT complete" bar has disappeared from the admin
 - [ ] Someone who knows the recipes and suppliers has done this, and there is a routine for updating it when a recipe or supplier changes
 
-### A5. Wording for the legal and allergen pages (54 placeholders)
+### A5. Wording for the legal and allergen pages (56 placeholders)
 Every one of these is shown on the live page as an amber **PLACEHOLDER** box and has to be decided by the owner or their adviser. Facts about how the site works are already written; these are the decisions. When all are filled in and the owner has read and approved the pages, set `LEGAL_APPROVED = true` in `lib/legal.ts` (one switch for all four pages). Until then the pages carry a DRAFT notice, are hidden from search engines and left out of the sitemap; a test refuses the switch while any placeholder remains.
 
-#### Privacy Policy (/privacy): 24 decisions
+#### Privacy Policy (/privacy): 26 decisions
 
 1. [ ] Date this policy was last updated _(Add once the owner approves the final wording.)_
 2. [ ] Legal name of the business, Companies House number and registered office address (the data controller) _(Enter the confirmed details in Settings (Shop and company details): the site footer shows nothing for them until then (R11.11).)_
@@ -68,16 +68,18 @@ Every one of these is shown on the live page as an amber **PLACEHOLDER** box and
 12. [ ] Country and transfer safeguard wording
 13. [ ] Bot-check provider name _(Confirm whether it is switched on for the order form.)_
 14. [ ] Country and transfer safeguard wording
-15. [ ] Google entry wording _(Loading Google's reviews discloses your internet address to Google. Decide wording, and whether it should wait for cookie consent.)_
+15. [ ] Image hosting provider name _(Expected: Cloudinary (the image host in use). Confirm.)_
 16. [ ] Country and transfer safeguard wording
-17. [ ] Analytics provider name
+17. [ ] Google entry wording _(Loading Google's reviews discloses your internet address to Google. Decide wording, and whether it should wait for cookie consent.)_
 18. [ ] Country and transfer safeguard wording
-19. [ ] Statement on whether we ever sell or share data for marketing, and on authorities or legal requests _(Legal decision.)_
-20. [ ] Retention wording for each type of data, including how long accounting records must be kept _(Retention periods are a legal and business decision. The 12 months above is a setting in the code, not a statement of what the law requires.)_
-21. [ ] Retention of backups, email provider logs and card-payment records held by the payment provider
-22. [ ] Exact wording of the rights, the time we have to reply, and any limits that apply _(Needs the owner's adviser's review. The sentence above is a plain summary, not approved legal wording.)_
-23. [ ] Contact email or postal address for privacy requests _(The shop's general contact details are not assumed to be the right place for data requests.)_
-24. [ ] Name of a data protection contact, if the business appoints one
+19. [ ] Analytics provider name
+20. [ ] Country and transfer safeguard wording
+21. [ ] Statement on whether we ever sell or share data for marketing, and on authorities or legal requests _(Legal decision.)_
+22. [ ] Retention wording for each type of data, including how long accounting records must be kept _(Retention periods are a legal and business decision. The 12 months above is a setting in the code, not a statement of what the law requires.)_
+23. [ ] Retention of backups, email provider logs and card-payment records held by the payment provider
+24. [ ] Exact wording of the rights, the time we have to reply, and any limits that apply _(Needs the owner's adviser's review. The sentence above is a plain summary, not approved legal wording.)_
+25. [ ] Contact email or postal address for privacy requests _(The shop's general contact details are not assumed to be the right place for data requests.)_
+26. [ ] Name of a data protection contact, if the business appoints one
 
 #### Cookie Policy (/cookies): 7 decisions
 
@@ -118,7 +120,7 @@ Every one of these is shown on the live page as an amber **PLACEHOLDER** box and
 3. [ ] Wording about recipe or supplier changes and how allergen information is kept up to date
 4. [ ] Phone number and times to call about allergens _(Contact details are confirmed by the owner, not assumed.)_
 
-**Total: 54 placeholders.**
+**Total: 56 placeholders.**
 
 ### A6. Staff
 - [ ] A **30-minute walkthrough** with the owner (R9.14), using `docs/daily-routine.md` (one page for the counter)
@@ -229,7 +231,7 @@ Everything here was tested as far as it can be without the real service (fakes, 
 ## E. The order to do it in
 1. Owner answers section A2 and supplies A1 and the business facts.
 2. Create the accounts and keys (B). Create the real KV and D1 ids and put them in `wrangler.jsonc` (B6).
-3. Fill in the 54 placeholders with the adviser, enter the company details in Settings, run `npm run contact:check`, then set `LEGAL_APPROVED = true`.
+3. Fill in the 56 placeholders with the adviser, enter the company details in Settings, run `npm run contact:check`, then set `LEGAL_APPROVED = true`.
 4. In the admin, the owner confirms the shop and company details, checks prices, enters hours, zones and photos, and enters **every** allergen. `npm run allergens:check` says OK.
 5. Deploy to a **preview** address first (`APP_ENV=preview`: hidden from search engines), and work through section C.
 6. Only then point the real domain at it and switch to `production`.
