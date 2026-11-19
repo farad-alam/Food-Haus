@@ -38,3 +38,22 @@ export async function ShopStatusBanner() {
     </div>
   );
 }
+
+/**
+ * The home page hero's status line (R5.1): "Open now" with when orders stop, or why we are closed and when we
+ * reopen. Same schedule and same wording rules as the strip under the header, so the two can never disagree.
+ * The caller reserves its height, so streaming in moves nothing.
+ */
+export async function HeroStatus() {
+  await connection();
+  const now = new Date();
+  const state = shopState(await getSchedule(), now);
+  return state.open ? (
+    <p className="flex items-center gap-2 text-sm font-bold text-green-400" data-testid="hero-status" data-open="true">
+      <span aria-hidden="true">●</span>
+      <span>Open now{state.closesAt ? `, taking orders until ${formatClock(londonParts(state.closesAt).minutes)}` : ""}</span>
+    </p>
+  ) : (
+    <p className="text-sm font-bold text-brand" data-testid="hero-status" data-open="false">{closedMessage(state, now)}</p>
+  );
+}

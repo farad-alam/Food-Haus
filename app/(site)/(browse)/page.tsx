@@ -5,9 +5,11 @@ import { RestaurantJsonLd } from "@/components/json-ld";
 import { Suspense } from "react";
 import { AddToBasket } from "@/components/basket";
 import { OfferStrip } from "@/components/live-offers";
+import { HeroStatus } from "@/components/shop-status";
 import { ReviewsBlock } from "@/components/reviews";
 import { getMenu } from "@/lib/menu";
 import { getSchedule } from "@/lib/schedule-public";
+import { weekTimetable } from "@/lib/shop-status";
 import { formatPence } from "@/lib/money";
 import { getContact } from "@/lib/contact-public";
 import { fullAddress, mapsLinkFor, phoneDisplay, telHref } from "@/lib/contact-format";
@@ -23,7 +25,8 @@ export const metadata: Metadata = pageMetadata({
 export default async function Home() {
   const menu = await getMenu();
   const contact = await getContact();
-  const { hours } = await getSchedule(); // owner-entered opening hours, for the structured data
+  const { hours } = await getSchedule(); // owner-entered opening hours: structured data and the hours block
+  const timetable = weekTimetable(hours);
 
   return (
     <main>
@@ -35,6 +38,12 @@ export default async function Home() {
           <p className="mb-2 inline-block rounded-full border border-ok px-3 py-1 text-xs font-bold uppercase tracking-wide text-ok">
             100% Halal
           </p>
+          {/* R5.1: open or closed, with the next opening time. A fixed-height row, so it streaming in shifts nothing (R10.8). */}
+          <div className="mb-3 min-h-[1.5rem]">
+            <Suspense fallback={null}>
+              <HeroStatus />
+            </Suspense>
+          </div>
           <h1 className="font-display text-5xl leading-none sm:text-7xl">
             Halal burgers <span className="text-brand">in Luton</span>
           </h1>
@@ -96,6 +105,21 @@ export default async function Home() {
         <p className="mt-3">
           <a href={mapsLinkFor(contact)} rel="noopener noreferrer" className="btn btn-ghost" data-event="click_directions">Get directions</a>
         </p>
+        {/* Opening hours (R5.1), from the same settings as the status above and the footer. Nothing shown until the owner enters them. */}
+        {timetable.length > 0 && (
+          <div className="mt-6 max-w-sm" data-testid="home-hours">
+            <h3 className="font-display text-2xl">Opening hours</h3>
+            <dl className="mt-2 divide-y divide-line border-y border-line">
+              {timetable.map((r) => (
+                <div key={r.day} className="flex justify-between gap-4 py-1.5">
+                  <dt className="font-bold">{r.day}</dt>
+                  <dd className={r.times === "Closed" ? "text-muted" : ""}>{r.times}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-2 text-sm text-muted">Times are UK time. We may close on bank holidays.</p>
+          </div>
+        )}
       </section>
     </main>
   );
