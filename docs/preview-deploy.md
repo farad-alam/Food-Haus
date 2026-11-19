@@ -62,3 +62,20 @@ Symptom on the live preview (commit c8acdc5): /menu and /offers (and sometimes t
 - Fix on this branch: the five public data readers (menu, offers, opening hours, notice bar, contact details) no longer use Next's `use cache`. `lib/local-cache.ts` keeps only resolved plain values for 30 seconds per running instance; every miss does its own database read and nothing pending is shared between requests. Admin saves clear the instance that handled them at once (`lib/menu-cache.ts`); another running instance can show a value up to 30 seconds old.
 - NOT reproduced locally: Cloudflare's local runtime does not cancel a request when the client hangs up, so the exact trigger could not be provoked. The location was found from the stack; the fix removes that mechanism. Verified in the local runtime against the real database: every page renders, 40 concurrent mixed requests (some hung up early) all succeed, and pages still render after the old 60-second window.
 - Log noise that is NOT a bug: "Failed to revalidate stale page /checkout ... Dummy queue is not implemented". OpenNext has no queue configured, so stale prerendered static pages (checkout, terms, privacy, cookies, login) cannot be refreshed in the background; they are static text and keep being served. Harmless.
+
+## Requirements batch (home status and hours, About, area pages, blog, photos)
+Variables are BUILD variables in the dashboard (they are fixed when the site is built), then Retry build.
+
+| Feature | Variables | Behaviour when unset |
+| --- | --- | --- |
+| Google reviews and rating badge (R7) | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `NEXT_PUBLIC_GOOGLE_PLACE_ID`; optional `NEXT_PUBLIC_GOOGLE_REVIEW_URL` | Nothing is drawn, no space is taken |
+| Blog (R5.9) | `NEXT_PUBLIC_SANITY_PROJECT_ID` (8 to 12 lower-case letters or digits); optional `NEXT_PUBLIC_SANITY_DATASET` (default `production`) | `/blog` and `/blog/<slug>` return 404; no nav link, no sitemap entries |
+| Photo upload (R9.7) | Not variables: the `PHOTOS` R2 bucket and `IMAGES` binding in `wrangler.jsonc` (see below) | The editor says photo upload is not switched on; the rest of the site is unaffected |
+
+Google: create an API key restricted to your website address and to "Maps JavaScript API" and "Places API (New)"; the Place ID comes from Google's Place ID finder. The rating, count and review text are drawn by Google in the visitor's browser; none is stored or typed by us. Without a valid key and Place ID the block simply does not appear.
+
+Sanity: the project must have a PUBLIC dataset with documents of type `post` having `title`, `slug`, `excerpt`, `publishedAt`, optional `seoDescription` and `mainImage` (with `alt`), and `body` (portable text). Only published documents are read; no token is used. Unreachable Sanity: the list shows a polite message and an article is a 404.
+
+Photos on this preview: the R2 and Images bindings were left out of this branch's `wrangler.jsonc`, so upload cannot work here. The admin now says so in plain words instead of failing. To switch it on: create the R2 bucket `food-haus-photos`, enable the Images service on the account, then ask for the two bindings (`r2_buckets` PHOTOS and `images` IMAGES) to be added back to this branch's `wrangler.jsonc` and rebuild. R2 needs a payment method on the account; check Images pricing. Item cards, the hero and the home cards show a photo only when one exists, and look complete without one.
+
+Area pages `/areas/<district>`: exist only for districts that are active delivery zones; noindex and not in the sitemap until real local text for the district is added to `AREA_COPY` in `lib/areas.ts`.

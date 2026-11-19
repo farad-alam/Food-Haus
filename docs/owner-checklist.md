@@ -218,7 +218,9 @@ Everything here was tested as far as it can be without the real service (fakes, 
 ## D. Not built (so nobody expects it at launch)
 **Must-have items not built:** none that can be built without the owner's information or a real deployment. Everything in the requirements marked Must is either built or is on this list for the owner or the deployment.
 
-**Should-have or later, not built:** `/about` page; local area pages and the blog (R5.7 to R5.9, R11.6); later-time ordering (Q5); an admin Refund button (refunds are done in Stripe); per-customer limits on offers and stacking offers; option groups for a single item rather than a whole category; card fees, refunds and VAT in the daily report; a scheduled sweep for unused photo files; error tracking and uptime monitoring.
+**Built on the preview branch only (not on `main`):** `/about`, area pages (hidden from search engines until the SEO lead adds local text), the blog (404 until Sanity is set up), the home page open/closed status and hours block. See `docs/preview-deploy.md`.
+
+**Should-have or later, not built:** later-time ordering (Q5); an admin Refund button (refunds are done in Stripe); per-customer limits on offers and stacking offers; option groups for a single item rather than a whole category; card fees, refunds and VAT in the daily report; a scheduled sweep for unused photo files; error tracking and uptime monitoring.
 
 **Known limits worth knowing:** unauthenticated visits to `/admin` return HTTP 200 with a redirect instruction rather than a 307 (no data is in it); unknown order links show "not found" with HTTP 200; an owner or manager signed out by the 30-minute inactivity timeout on the board stops hearing orders (the always-on kitchen login has no timeout, so run the board on that); the daily-report and history screens are read-only.
 
