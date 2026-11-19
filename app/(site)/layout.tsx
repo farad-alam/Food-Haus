@@ -32,6 +32,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
               <nav aria-label="Main" className="hidden items-center gap-5 text-sm sm:flex">
                 <Link href="/menu">Menu</Link>
                 <Link href="/offers">Offers</Link>
+                <Link href="/about">About</Link>
                 <Link href="/contact">Contact</Link>
               </nav>
               {/* R2: one primary action visible on every public page */}
@@ -78,6 +79,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
               <nav aria-label="Legal">
                 <p className="font-semibold text-text">Info</p>
                 <ul className="space-y-1">
+                  <li><Link href="/about">About</Link></li>
                   <li><Link href="/allergens">Allergens</Link></li>
                   <li><Link href="/privacy">Privacy</Link></li>
                   <li><Link href="/cookies">Cookies</Link></li>

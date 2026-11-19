@@ -18,7 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
   const allergens = LEGAL_APPROVED && ready ? ["/allergens"] : [];
   const legal = LEGAL_APPROVED ? ["/privacy", "/cookies", "/terms"] : [];
-  return ["", "/menu", "/offers", "/contact", ...allergens, ...legal].map((path) => ({
+  return ["", "/menu", "/offers", "/about", "/contact", ...allergens, ...legal].map((path) => ({
     url: `${SITE_URL}${path}`,
     lastModified,
   }));
