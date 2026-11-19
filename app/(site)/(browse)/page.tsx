@@ -19,7 +19,7 @@ import { formatPence } from "@/lib/money";
 import { getContact } from "@/lib/contact-public";
 import { fullAddress, mapsLinkFor, phoneDisplay, telHref } from "@/lib/contact-format";
 import { getPhotoCloudName } from "@/lib/photos";
-import { bannerSrcSet, bannerUrl, photoSrcSet, photoUrl } from "@/lib/photos/keys";
+import { bannerSrcSet, bannerUrl, photoSrcSet, photoUrl, squareSrcSet, squareUrl } from "@/lib/photos/keys";
 import { shop } from "@/lib/shop";
 
 export const metadata: Metadata = pageMetadata({
@@ -42,20 +42,21 @@ export default async function Home() {
   const photoCloud = getPhotoCloudName();
   const home = await getHomeImages();
 
-  // Hero background (R5.1, R10.5): the image uploaded in Settings (Home page images, hero), else the built-in
+  // Hero picture (R5.1, R10.5): the image uploaded in Settings (Home page images, hero), else the built-in
   // one. It is the page's largest element, so it is preloaded; AVIF-only preload is safe (a browser that cannot
   // use AVIF ignores a preload whose type it does not support and falls back to the <picture> sources).
   const heroBg = photoCloud && home.hero ? home.hero : null;
-  if (heroBg) preload(bannerUrl(photoCloud, heroBg.key, 1024), { as: "image", imageSrcSet: bannerSrcSet(photoCloud, heroBg.key), imageSizes: "100vw", fetchPriority: "high" });
-  else preload(`${HOME_DEFAULTS.hero.base}-1024.avif`, { as: "image", type: "image/avif", imageSrcSet: HOME_DEFAULTS.hero.widths.map((w) => `${HOME_DEFAULTS.hero.base}-${w}.avif ${w}w`).join(", "), imageSizes: "(min-width: 768px) 1100px, 100vw", fetchPriority: "high" });
+  const HERO_SIZES = "(min-width: 768px) 600px, 100vw";
+  if (heroBg) preload(squareUrl(photoCloud, heroBg.key, 800), { as: "image", imageSrcSet: squareSrcSet(photoCloud, heroBg.key), imageSizes: HERO_SIZES, fetchPriority: "high" });
+  else preload(`${HOME_DEFAULTS.hero.base}-1024.avif`, { as: "image", type: "image/avif", imageSrcSet: HOME_DEFAULTS.hero.widths.map((w) => `${HOME_DEFAULTS.hero.base}-${w}.avif ${w}w`).join(", "), imageSizes: HERO_SIZES, fetchPriority: "high" });
 
-  /** The hero background at one of its two placements (desktop layer / phone strip). Decorative: the headline says everything. */
-  const heroBgImg = (className: string, sizes: string, eager?: boolean) =>
+  /** The hero picture at one of its two placements (right-hand layer / phone strip). Decorative: the headline says everything. */
+  const heroImg = (className: string) =>
     heroBg ? (
       // eslint-disable-next-line @next/next/no-img-element -- already sized by Cloudinary transformations
-      <img src={bannerUrl(photoCloud, heroBg.key, 1024)} srcSet={bannerSrcSet(photoCloud, heroBg.key)} sizes={sizes} alt="" width={1600} height={900} loading={eager ? "eager" : "lazy"} fetchPriority={eager ? "high" : undefined} decoding="async" className={className} />
+      <img src={squareUrl(photoCloud, heroBg.key, 800)} srcSet={squareSrcSet(photoCloud, heroBg.key)} sizes={HERO_SIZES} alt="" width={1024} height={1024} loading="eager" fetchPriority="high" decoding="async" className={className} />
     ) : (
-      <FoodPicture image={HOME_DEFAULTS.hero} sizes={sizes} loading={eager ? "eager" : "lazy"} fetchPriority={eager ? "high" : undefined} imgClassName={className} />
+      <FoodPicture image={HOME_DEFAULTS.hero} sizes={HERO_SIZES} loading="eager" fetchPriority="high" imgClassName={className} />
     );
 
   const slugOf = new Map(menu.categories.map((c) => [c.name, c.slug]));
@@ -64,19 +65,17 @@ export default async function Home() {
     <main className="bg-ink">
       <RestaurantJsonLd menu={menu} hours={hours} contact={contact} />
 
-      {/* ---- HERO (full-bleed background: burger right, text left over the dark smoke) --------- */}
-      <section className="relative overflow-hidden bg-ink">
-        {/* The background layer (tablet and up): anchored to the right and capped at 1100 px wide so the
-            1024 px source is never stretched soft; its black edges and the gradient melt it into the page. */}
-        <div aria-hidden="true" className="absolute inset-0 hidden md:block">
-          <div className="absolute inset-y-0 right-0 w-full max-w-[1100px]">
-            {heroBgImg("h-full w-full object-cover object-right", "(min-width: 768px) 1100px, 100vw", true)}
-          </div>
-          {/* Left-to-right wash: solid ink under the text, clear over the burger (AA contrast at every width). */}
-          <div className="absolute inset-0 bg-gradient-to-r from-ink from-35% via-ink/75 via-55% to-transparent" />
+      {/* ---- HERO (dark edge to edge: CSS glow, the burger anchored right at full hero height, text left) --- */}
+      <section className="hero-bg relative overflow-hidden bg-ink">
+        {/* Tablet and up: the square picture sits at the right at the hero's full height (so a ~600 px hero shows
+            it at ~1.7x pixel density), its left edge masked away so there is no visible box. */}
+        <div aria-hidden="true" className="absolute inset-y-0 right-0 hidden aspect-square h-full md:block">
+          {heroImg("hero-mask h-full w-full object-cover")}
         </div>
-        <div className="relative mx-auto max-w-5xl px-4 pb-6 pt-8 sm:pt-14 md:flex md:min-h-[480px] md:items-center md:pb-14 lg:min-h-[540px]">
-          <div className="md:max-w-xl">
+        {/* Wash under the text: solid ink on the left so the words keep AA contrast over the glow or the burger. */}
+        <div aria-hidden="true" className="absolute inset-0 hidden bg-gradient-to-r from-ink from-30% via-ink/70 via-50% to-transparent md:block" />
+        <div className="relative mx-auto max-w-5xl px-4 pb-6 pt-8 sm:pt-14 md:flex md:min-h-[520px] md:items-center md:pb-14 lg:min-h-[600px]">
+          <div className="md:max-w-sm lg:max-w-xl">
             <p className="mb-2 inline-block rounded-full border border-ok px-3 py-1 text-xs font-bold uppercase tracking-wide text-ok">100% Halal</p>
             {/* R5.1: open or closed with the next opening time; fixed-height row so it streaming in shifts nothing (R10.8) */}
             <div className="mb-3 min-h-[1.5rem]">
@@ -101,10 +100,9 @@ export default async function Home() {
           </div>
         </div>
         {/* On phones the text comes first on plain ink, then the picture below it, fading in from the ink above
-            so there is no box edge; the burger (right of frame) stays in view. */}
+            so there is no box edge; the burger (right of centre) stays in view. */}
         <div aria-hidden="true" className="relative -mt-2 md:hidden">
-          {heroBgImg("aspect-[1024/572] w-full object-cover object-right", "100vw", true)}
-          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-ink to-transparent" />
+          {heroImg("hero-mask-phone aspect-[5/4] w-full object-cover object-[right_55%]")}
         </div>
       </section>
 

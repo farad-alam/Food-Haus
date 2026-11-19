@@ -9,7 +9,7 @@ import { api, failMessage, field, Msg, Section } from "./ui";
 const MON_FIRST = [1, 2, 3, 4, 5, 6, 0];
 import type { ClosureView, General, SettingsView, ZoneRow } from "@/lib/admin/settings";
 import { phoneDisplay, type Contact } from "@/lib/contact-format";
-import { bannerUrl, photoUrl } from "@/lib/photos/keys";
+import { bannerUrl, photoUrl, squareUrl } from "@/lib/photos/keys";
 
 // Settings (R9.9, R9.10): pause switch, opening hours, closure days, prep time
 // and cash limits, delivery zones. The server re-validates everything; the
@@ -316,7 +316,7 @@ function HomeImagesSection() {
   return (
     <Section id="homeimg-h" title="Home page images" hint="The big hero photo, the wide banner above the popular items, and one round photo per menu category. Until you upload one, the page shows its built-in picture, so nothing is ever broken or empty. JPEG, PNG or WebP, at least 1200 x 900 pixels.">
       <div className="space-y-5">
-        <HomeImageSlot label="Hero background (the full-width photo behind the headline; food on the RIGHT, dark on the left so the words stay readable)" slot={{ slot: "hero" }} image={data.images.hero?.key ?? null} cloud={data.photoCloud} shape="wide" onChanged={load} />
+        <HomeImageSlot label="Hero picture (square, shown on the right of the headline; a dark background with the food centred or just right of centre works best)" slot={{ slot: "hero" }} image={data.images.hero?.key ?? null} cloud={data.photoCloud} shape="square" onChanged={load} />
         <HomeImageSlot label="Wide banner (above the popular items)" slot={{ slot: "banner" }} image={data.images.banner} cloud={data.photoCloud} shape="wide" onChanged={load} />
         <div>
           <h3 className="font-bold">Category photos (the round tiles)</h3>
@@ -333,7 +333,7 @@ function HomeImagesSection() {
   );
 }
 
-function HomeImageSlot({ label, slot, image, cloud, shape, onChanged }: { label: string; slot: { slot: "hero" } | { slot: "banner" } | { slot: "category"; slug: string }; image: string | null; cloud: string | null; shape: "round" | "wide"; onChanged: () => void }) {
+function HomeImageSlot({ label, slot, image, cloud, shape, onChanged }: { label: string; slot: { slot: "hero" } | { slot: "banner" } | { slot: "category"; slug: string }; image: string | null; cloud: string | null; shape: "round" | "wide" | "square"; onChanged: () => void }) {
   const [msg, setMsg] = useState<{ text: string; good?: boolean }>({ text: "" });
   const [busy, setBusy] = useState(false);
   async function send(form: FormData, done: string) {
@@ -367,7 +367,7 @@ function HomeImageSlot({ label, slot, image, cloud, shape, onChanged }: { label:
       <div className="mt-2 flex flex-wrap items-start gap-4">
         {cloud && image ? (
           // eslint-disable-next-line @next/next/no-img-element -- already sized by Cloudinary transformations
-          <img src={shape === "wide" ? bannerUrl(cloud, image, 400) : photoUrl(cloud, image, 400)} alt="" width={shape === "round" ? 96 : 192} height={shape === "round" ? 96 : 108} className={shape === "round" ? "h-24 w-24 rounded-full object-cover" : "aspect-video w-48 rounded-lg object-cover"} />
+          <img src={shape === "wide" ? bannerUrl(cloud, image, 400) : shape === "square" ? squareUrl(cloud, image, 400) : photoUrl(cloud, image, 400)} alt="" width={shape === "wide" ? 192 : 96} height={shape === "wide" ? 108 : 96} className={shape === "round" ? "h-24 w-24 rounded-full object-cover" : shape === "square" ? "h-24 w-24 rounded-lg object-cover" : "aspect-video w-48 rounded-lg object-cover"} />
         ) : (
           <p className="text-sm text-muted">No photo uploaded: the page shows its built-in picture.</p>
         )}

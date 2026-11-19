@@ -40,6 +40,19 @@ export function bannerSrcSet(cloud: string | null | undefined, publicId: string)
     .join(", ");
 }
 
+/** One size of a SQUARE photo, for the admin-uploaded hero picture. Same rules as photoUrl. */
+export function squareUrl(cloud: string | null | undefined, publicId: string, width: number): string {
+  if (!isCloudName(cloud) || !isPublicId(publicId)) return "";
+  const w = Math.min(Math.max(Math.round(width), 1), MAX_DELIVERY_WIDTH);
+  return `https://res.cloudinary.com/${cloud}/image/upload/c_lfill,ar_1:1,g_auto,w_${w},f_auto,q_auto/${publicId}`;
+}
+export function squareSrcSet(cloud: string | null | undefined, publicId: string): string {
+  return DELIVERY_WIDTHS.map((w) => ({ w, u: squareUrl(cloud, publicId, w) }))
+    .filter((x) => x.u)
+    .map((x) => `${x.u} ${x.w}w`)
+    .join(", ");
+}
+
 /** The srcset for a photo: every delivery width, each described by its real width. */
 export function photoSrcSet(cloud: string | null | undefined, publicId: string): string {
   return DELIVERY_WIDTHS.map((w) => ({ w, u: photoUrl(cloud, publicId, w) }))
